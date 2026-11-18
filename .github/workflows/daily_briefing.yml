@@ -1,0 +1,78 @@
+name: Headless n8n Daily Cloud Dispatcher
+
+on:
+  schedule:
+    # 02:00 UTC = 07:30 AM IST (India Standard Time)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allows manual 1-click test in GitHub Actions UI
+
+jobs:
+  run-n8n-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Launch n8n Container in Docker
+        run: |
+          echo "🚀 Starting isolated n8n container with 7GB RAM..."
+          docker run -d --name n8n-runner \
+            -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
+            -e N8N_BLOCK_ENV_ACCESS_IN_NODE=false \
+            -e GROQ_API_KEY="${{ secrets.GROQ_API_KEY }}" \
+            -e SENDER_EMAIL="${{ secrets.SENDER_EMAIL }}" \
+            -e RECEIVER_EMAIL="${{ secrets.RECEIVER_EMAIL }}" \
+            -e GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
+            docker.n8n.io/n8nio/n8n:latest
+          
+          # Wait for n8n container to initialize
+          echo "⏳ Waiting for n8n to boot up..."
+          sleep 10
+
+      - name: Prepare n8n Credentials & Workflow
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          # 1. Substitute API keys and Emails inside workflow JSON
+          sed -i "s|YOUR_GROQ_API_KEY_HERE|${GROQ_API_KEY}|g" daily_tech_pulse_n8n.json
+          sed -i "s|YOUR_GMAIL@gmail.com|${SENDER_EMAIL}|g" daily_tech_pulse_n8n.json
+
+          # 2. Generate decrypted SMTP credentials for n8n
+          cat <<EOF > /tmp/smtp_creds.json
+          [
+            {
+              "name": "Gmail SMTP Account",
+              "type": "smtp",
+              "data": {
+                "user": "${SENDER_EMAIL}",
+                "password": "${GMAIL_APP_PASSWORD}",
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "secure": true
+              }
+            }
+          ]
+          EOF
+
+          # 3. Copy workflow and credentials into Docker container
+          docker cp daily_tech_pulse_n8n.json n8n-runner:/tmp/workflow.json
+          docker cp /tmp/smtp_creds.json n8n-runner:/tmp/smtp_creds.json
+
+      - name: Import and Execute n8n Workflow
+        run: |
+          echo "📥 Importing SMTP credentials into n8n..."
+          docker exec n8n-runner n8n import:credentials --decrypted --input=/tmp/smtp_creds.json
+
+          echo "📥 Importing n8n workflow..."
+          docker exec n8n-runner n8n import:workflow --input=/tmp/workflow.json
+
+          echo "🔍 Extracting Workflow ID..."
+          WORKFLOW_ID=$(docker exec n8n-runner n8n export:workflow --all --json | jq -r '.[0].id')
+          echo "Found n8n Workflow ID: $WORKFLOW_ID"
+
+          echo "⚡ Executing n8n Workflow Headlessly..."
+          docker exec n8n-runner n8n execute --id "$WORKFLOW_ID"
+          echo "🎉 n8n workflow execution completed successfully!"
