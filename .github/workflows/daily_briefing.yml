@@ -17,17 +17,17 @@ jobs:
         run: |
           echo "🚀 Starting isolated n8n container with 7GB RAM..."
           docker run -d --name n8n-runner \
-            -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
+            -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false \
             -e N8N_BLOCK_ENV_ACCESS_IN_NODE=false \
             -e GROQ_API_KEY="${{ secrets.GROQ_API_KEY }}" \
             -e SENDER_EMAIL="${{ secrets.SENDER_EMAIL }}" \
             -e RECEIVER_EMAIL="${{ secrets.RECEIVER_EMAIL }}" \
             -e GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
-            docker.n8n.io/n8nio/n8n:latest
+            n8nio/n8n:latest
           
           # Wait for n8n container to initialize
           echo "⏳ Waiting for n8n to boot up..."
-          sleep 10
+          sleep 12
 
       - name: Prepare n8n Credentials & Workflow
         env:
@@ -41,7 +41,7 @@ jobs:
           sed -i "s|YOUR_GMAIL@gmail.com|${SENDER_EMAIL}|g" daily_tech_pulse_n8n.json
 
           # 2. Generate decrypted SMTP credentials for n8n
-          cat <<EOF > /tmp/smtp_creds.json
+          cat <<EOF > smtp_creds.json
           [
             {
               "name": "Gmail SMTP Account",
@@ -57,22 +57,25 @@ jobs:
           ]
           EOF
 
-          # 3. Copy workflow and credentials into Docker container
-          docker cp daily_tech_pulse_n8n.json n8n-runner:/tmp/workflow.json
-          docker cp /tmp/smtp_creds.json n8n-runner:/tmp/smtp_creds.json
+          chmod 777 daily_tech_pulse_n8n.json smtp_creds.json
+
+          # 3. Copy files into n8n container with accessible permissions
+          docker cp daily_tech_pulse_n8n.json n8n-runner:/home/node/workflow.json
+          docker cp smtp_creds.json n8n-runner:/home/node/smtp_creds.json
+          docker exec -u 0 n8n-runner chown -R node:node /home/node/workflow.json /home/node/smtp_creds.json
 
       - name: Import and Execute n8n Workflow
         run: |
           echo "📥 Importing SMTP credentials into n8n..."
-          docker exec n8n-runner n8n import:credentials --decrypted --input=/tmp/smtp_creds.json
+          docker exec -u node n8n-runner n8n import:credentials --decrypted --input=/home/node/smtp_creds.json
 
           echo "📥 Importing n8n workflow..."
-          docker exec n8n-runner n8n import:workflow --input=/tmp/workflow.json
+          docker exec -u node n8n-runner n8n import:workflow --input=/home/node/workflow.json
 
           echo "🔍 Extracting Workflow ID..."
-          WORKFLOW_ID=$(docker exec n8n-runner n8n export:workflow --all --json | jq -r '.[0].id')
+          WORKFLOW_ID=$(docker exec -u node n8n-runner n8n export:workflow --all | jq -r '.[0].id')
           echo "Found n8n Workflow ID: $WORKFLOW_ID"
 
           echo "⚡ Executing n8n Workflow Headlessly..."
-          docker exec n8n-runner n8n execute --id "$WORKFLOW_ID"
+          docker exec -u node n8n-runner n8n execute --id "$WORKFLOW_ID"
           echo "🎉 n8n workflow execution completed successfully!"
