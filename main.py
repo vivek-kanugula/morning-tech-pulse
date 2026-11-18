@@ -13,17 +13,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from dotenv import load_dotenv
 
-# Load local .env if available
+# Load local .env
 load_dotenv()
 
 def fetch_raw_signals():
-    """Fetch live developer signals from Hacker News and GitHub APIs."""
-    print("📡 [1/4] Fetching live data from Hacker News & GitHub APIs...")
+    """Fetch raw signals from Hacker News and GitHub APIs."""
+    print("📡 [1/4] Pulling top stories from Hacker News & trending GitHub repositories...")
     stories = []
     
     # 1. Fetch Top Hacker News Stories
     try:
-        hn_top_ids = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10).json()[:10]
+        hn_top_ids = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10).json()[:12]
         for item_id in hn_top_ids:
             try:
                 item_data = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=5).json()
@@ -32,24 +32,24 @@ def fetch_raw_signals():
                         "title": item_data["title"],
                         "url": item_data.get("url", f"https://news.ycombinator.com/item?id={item_id}"),
                         "score": item_data.get("score", 0),
-                        "source": "Hacker News"
+                        "comments_count": item_data.get("descendants", 0)
                     })
             except Exception:
                 continue
     except Exception as e:
         print(f"⚠️ Warning: HN fetch failed: {e}")
 
-    # 2. Fetch Trending GitHub Repositories
+    # 2. Fetch High-Star GitHub Repositories Active in Past 7 Days
     github_repos = []
     try:
         week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-        gh_url = f"https://api.github.com/search/repositories?q=stars:>150+pushed:>{week_ago}&sort=stars&order=desc&per_page=5"
-        headers = {"User-Agent": "MorningTechPulseAgent/1.0"}
+        gh_url = f"https://api.github.com/search/repositories?q=stars:>200+pushed:>{week_ago}&sort=stars&order=desc&per_page=6"
+        headers = {"User-Agent": "TechBriefingAgent/1.0"}
         gh_resp = requests.get(gh_url, headers=headers, timeout=10).json()
         for repo in gh_resp.get("items", []):
             github_repos.append({
                 "name": repo["full_name"],
-                "description": repo.get("description") or "Open source tool",
+                "description": repo.get("description") or "Open source library",
                 "stars": repo.get("stargazers_count", 0),
                 "url": repo["html_url"],
                 "language": repo.get("language") or "General"
@@ -57,55 +57,62 @@ def fetch_raw_signals():
     except Exception as e:
         print(f"⚠️ Warning: GitHub fetch failed: {e}")
 
-    print(f"✅ Collected {len(stories)} HN stories and {len(github_repos)} trending repositories.")
+    print(f"✅ Ingested {len(stories)} HN stories and {len(github_repos)} GitHub repositories.")
     return stories, github_repos
 
 
 def curate_with_groq(stories, github_repos):
-    """Call Groq Llama-3.3-70B to synthesize news, System Design card, GitHub gem, and terminal tip."""
-    print("🧠 [2/4] Synthesizing intelligence with Groq Llama-3.3-70B...")
+    """
+    Synthesize high-density technical digest using Groq Llama-3.3-70B.
+    Enforces strict zero-AI-slop rubric: no buzzwords, no hype, only technical facts and trade-offs.
+    """
+    print("🧠 [2/4] Synthesizing technical briefing via Groq Llama-3.3-70B (Zero-Slop Filter)...")
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY environment variable is missing!")
 
     client = Groq(api_key=api_key)
 
-    system_prompt = """You are a Senior Staff Software Engineer and System Architect preparing the daily 'Morning Tech Pulse' brief for ambitious engineers.
-Your task is to produce a structured, high-signal technical digest. Filter out clickbait, crypto marketing, and generic announcements.
+    system_prompt = """You are a Principal Infrastructure & Systems Architect writing an internal engineering brief for senior engineers at a top tech company.
+STRICT STYLE RULES:
+- FORBIDDEN WORDS: revolutionary, game-changer, delve, tapestry, testament, unleash, foster, pivotal, paramount, realm, in today's fast-paced, cutting-edge, elevate.
+- ZERO MARKETING HYPE: Do not say 'this tool empowers developers'. State exact technical functions, protocols, performance metrics, benchmarks, or memory/CPU tradeoffs.
+- Write with brutal conciseness and technical precision. Assume the reader is a veteran backend/systems developer.
 
-You must return a strictly valid JSON object with the following schema:
+Return a valid JSON object matching this schema:
 {
   "top_stories": [
     {
-      "headline": "Clear, concise title",
-      "summary": "2-sentence technical summary of what was released or changed.",
-      "why_it_matters": "Architectural, performance, or developer workflow impact.",
-      "category": "AI / Systems / Cloud / OpenSource",
-      "url": "original link"
+      "headline": "Direct factual headline without exclamation marks",
+      "summary": "2 sentences explaining the technical implementation or change.",
+      "architectural_impact": "Direct analysis of latency, memory, concurrency, or infrastructure trade-offs.",
+      "category": "Systems / AI / Databases / Cloud / Networking",
+      "url": "original source link"
     }
   ],
   "github_gem": {
     "repo_name": "owner/repo",
-    "description": "What it does in 1 punchy sentence.",
-    "quickstart": "Terminal install or run command (e.g. pip install ... or docker run ...)",
-    "practical_use": "Why an engineer should use this today.",
+    "description": "Concrete technical description (e.g. 'Lock-free concurrent hashmap in Rust with SIMD lookup').",
+    "quickstart": "Exact terminal installation or run command",
+    "technical_utility": "Concrete scenario where an engineer would choose this over standard alternatives.",
     "url": "https://github.com/..."
   },
   "system_design_card": {
-    "topic": "Name of System Design Concept (e.g. Consistent Hashing, Bloom Filters, Raft Consensus, Write-Ahead Logs)",
-    "core_problem": "The distributed systems problem it solves in 1 sentence.",
-    "how_it_works": [
-      "Key bullet 1 explaining the mechanism",
-      "Key bullet 2 explaining trade-off (latency vs consistency, etc.)"
+    "topic": "Name of Concrete Architecture Pattern (e.g. Log-Structured Merge Trees, Consistent Hashing Rings, Epoll vs Select, Raft Consensus, Distributed Locks)",
+    "core_problem": "The fundamental distributed or operating system bottleneck it addresses.",
+    "mechanism_breakdown": [
+      "Precise mechanical step 1 (data structure or protocol behavior)",
+      "Precise mechanical step 2 (concurrency or consistency trade-off)"
     ],
-    "real_world_case": "How a company like Netflix, Discord, Uber, or Meta uses it."
+    "production_case_study": "Concrete production example (e.g. 'Discord replaced Cassandra with ScyllaDB, dropping p99 read latency from 40ms to 2ms due to Scylla's thread-per-core shared-nothing architecture in C++')."
   },
-  "terminal_tip": {
-    "command": "git or bash or docker 1-liner command",
-    "explanation": "What it does and why it saves time."
+  "terminal_power_tip": {
+    "command": "Practical Unix/Git/Docker command",
+    "use_case": "Specific scenario where this saves debugging time (e.g. inspecting socket buffers, tracking memory leaks, diffing branches)."
   }
 }
-Select 3 top technical breakthroughs from the provided Hacker News stories, pick 1 top repo from the GitHub list for the gem, and provide a fresh System Design card and terminal power-tip."""
+
+Select 3 top technical breakthroughs from the raw stories, 1 standout repository from the GitHub candidates, and formulate a rigorous System Design breakdown."""
 
     user_content = json.dumps({
         "raw_stories": stories[:8],
@@ -113,23 +120,23 @@ Select 3 top technical breakthroughs from the provided Hacker News stories, pick
     })
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
         response_format={"type": "json_object"},
-        temperature=0.2
+        temperature=0.1
     )
 
     data = json.loads(response.choices[0].message.content)
-    print("✅ AI Curation complete.")
+    print("✅ Technical curation completed.")
     return data
 
 
 def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
-    """Compile the curated content into an elegant, high-contrast PDF using ReportLab."""
-    print(f"📄 [3/4] Generating PDF report ({output_filename})...")
+    """Compile structured briefing into an executive-grade PDF using ReportLab."""
+    print(f"📄 [3/4] Compiling PDF report ({output_filename})...")
     doc = SimpleDocTemplate(
         output_filename,
         pagesize=letter,
@@ -141,195 +148,185 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
 
     styles = getSampleStyleSheet()
 
-    # Custom styles
+    # Editorial typography palette
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=20,
-        leading=24,
+        fontSize=18,
+        leading=22,
         textColor=colors.HexColor('#0f172a')
-    )
-    subtitle_style = ParagraphStyle(
-        'DocSubtitle',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=14,
-        textColor=colors.HexColor('#2563eb')
     )
     meta_style = ParagraphStyle(
         'DocMeta',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=9,
-        leading=12,
+        fontSize=8.5,
+        leading=11,
         textColor=colors.HexColor('#64748b')
     )
     section_h1 = ParagraphStyle(
         'SectionH1',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=13,
-        leading=16,
+        fontSize=11,
+        leading=14,
         textColor=colors.HexColor('#0f172a'),
         spaceBefore=10,
-        spaceAfter=6
+        spaceAfter=5
     )
     card_title = ParagraphStyle(
         'CardTitle',
         parent=styles['Heading3'],
         fontName='Helvetica-Bold',
-        fontSize=11,
-        leading=14,
+        fontSize=10,
+        leading=13,
         textColor=colors.HexColor('#1e293b')
     )
     body_text = ParagraphStyle(
         'BodyTextCustom',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=9.5,
-        leading=13.5,
+        fontSize=9,
+        leading=12.5,
         textColor=colors.HexColor('#334155')
     )
-    why_it_matters_text = ParagraphStyle(
-        'WhyItMatters',
+    impact_text = ParagraphStyle(
+        'ImpactText',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=9,
-        leading=13,
+        fontSize=8.5,
+        leading=12,
         textColor=colors.HexColor('#1e40af')
     )
     code_text = ParagraphStyle(
         'CodeSnippet',
         parent=styles['Normal'],
         fontName='Courier-Bold',
-        fontSize=9,
-        leading=12,
+        fontSize=8.5,
+        leading=11,
         textColor=colors.HexColor('#0f172a')
     )
 
     story = []
     today_str = datetime.date.today().strftime('%A, %d %B %Y')
 
-    # Header Banner Table
+    # Header Table
     header_data = [
         [
-            Paragraph("⚡ MORNING TECH PULSE", title_style),
-            Paragraph(f"<b>{today_str}</b><br/><font color='#64748b'>3-Min Executive Read</font>", ParagraphStyle('HRight', parent=meta_style, alignment=2))
+            Paragraph("<b>TECH PULSE</b> &nbsp;|&nbsp; <font color='#64748b'>ENGINEERING EXECUTIVE BRIEFING</font>", title_style),
+            Paragraph(f"<b>{today_str}</b><br/><font color='#64748b'>Curated for Vivek Kanugula</font>", ParagraphStyle('HRight', parent=meta_style, alignment=2))
         ]
     ]
-    header_table = Table(header_data, colWidths=[360, 180])
+    header_table = Table(header_data, colWidths=[380, 160])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('BOTTOMPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0),
     ]))
     story.append(header_table)
-    story.append(Spacer(1, 4))
-    story.append(Paragraph("AUTONOMOUS DEVELOPER INTELLIGENCE & SYSTEM DESIGN BRIEFING", subtitle_style))
-    story.append(Spacer(1, 8))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0f172a'), spaceBefore=2, spaceAfter=10))
+    story.append(Spacer(1, 6))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0f172a'), spaceBefore=2, spaceAfter=8))
 
     # SECTION 1: Top Engineering Breakthroughs
-    story.append(Paragraph("📰 1. TOP ENGINEERING BREAKTHROUGHS", section_h1))
+    story.append(Paragraph("1. CORE TECHNICAL DEVELOPMENTS", section_h1))
     for idx, item in enumerate(digest_data.get("top_stories", [])[:3], 1):
-        cat = item.get("category", "Tech")
-        headline = item.get("headline", "News Item")
+        cat = item.get("category", "Engineering")
+        headline = item.get("headline", "Technical Update")
         summary = item.get("summary", "")
-        why = item.get("why_it_matters", "")
+        impact = item.get("architectural_impact", "")
         url = item.get("url", "")
 
         story_block = [
             Paragraph(f"<b>{idx}. [{cat}] {headline}</b>", card_title),
-            Spacer(1, 2),
+            Spacer(1, 1),
             Paragraph(summary, body_text),
             Spacer(1, 2),
-            Paragraph(f"💡 <b>Why It Matters:</b> {why} <font color='#2563eb'>(<a href='{url}'><u>Read Source</u></a>)</font>", why_it_matters_text),
-            Spacer(1, 6)
+            Paragraph(f"⚙️ <b>Architectural Impact:</b> {impact} <font color='#2563eb'>(<a href='{url}'><u>Source</u></a>)</font>", impact_text),
+            Spacer(1, 5)
         ]
         story.extend(story_block)
 
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=6, spaceAfter=8))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=4, spaceAfter=6))
 
     # SECTION 2: GitHub Open-Source Gem
     gem = digest_data.get("github_gem", {})
     if gem:
-        story.append(Paragraph("🛠️ 2. GITHUB GEM OF THE DAY", section_h1))
+        story.append(Paragraph("2. OPEN-SOURCE TOOLING SPOTLIGHT", section_h1))
         gem_content = [
-            Paragraph(f"<b>Repo:</b> <font color='#2563eb'><b>{gem.get('repo_name')}</b></font> &nbsp;•&nbsp; <a href='{gem.get('url')}'><u>GitHub Link</u></a>", card_title),
+            Paragraph(f"<b>Repository:</b> <font color='#2563eb'><b>{gem.get('repo_name')}</b></font> &nbsp;•&nbsp; <a href='{gem.get('url')}'><u>Source Code</u></a>", card_title),
             Spacer(1, 2),
             Paragraph(gem.get("description", ""), body_text),
-            Spacer(1, 3),
+            Spacer(1, 2),
             Paragraph(f"<b>Quickstart:</b> <font face='Courier'><code>{gem.get('quickstart', '')}</code></font>", body_text),
             Spacer(1, 2),
-            Paragraph(f"<b>Why Use It:</b> {gem.get('practical_use', '')}", body_text),
+            Paragraph(f"<b>Technical Utility:</b> {gem.get('technical_utility', '')}", body_text),
         ]
         gem_table = Table([[gem_content]], colWidths=[540])
         gem_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('LEFTPADDING', (0,0), (-1,-1), 10),
-            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
         ]))
         story.append(gem_table)
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))
 
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=4, spaceAfter=8))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=6))
 
-    # SECTION 3: System Design Micro-Card
+    # SECTION 3: System Design Deep-Dive
     sd = digest_data.get("system_design_card", {})
     if sd:
-        story.append(Paragraph("🧠 3. SYSTEM DESIGN MICRO-CARD", section_h1))
-        bullets_text = "<br/>".join([f"• {b}" for b in sd.get("how_it_works", [])])
+        story.append(Paragraph("3. SYSTEM DESIGN ARCHITECTURE CARD", section_h1))
+        bullets_text = "<br/>".join([f"• {b}" for b in sd.get("mechanism_breakdown", [])])
         sd_content = [
-            Paragraph(f"<b>Concept: {sd.get('topic', 'Distributed Architecture')}</b>", card_title),
+            Paragraph(f"<b>Pattern: {sd.get('topic', 'Distributed Architecture')}</b>", card_title),
             Spacer(1, 2),
-            Paragraph(f"<b>The Problem:</b> {sd.get('core_problem', '')}", body_text),
+            Paragraph(f"<b>Bottleneck:</b> {sd.get('core_problem', '')}", body_text),
             Spacer(1, 2),
             Paragraph(bullets_text, body_text),
             Spacer(1, 2),
-            Paragraph(f"<b>🏢 Production Case Study:</b> {sd.get('real_world_case', '')}", why_it_matters_text),
+            Paragraph(f"<b>Production Case Study:</b> {sd.get('production_case_study', '')}", impact_text),
         ]
         sd_table = Table([[sd_content]], colWidths=[540])
         sd_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#eff6ff')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#bfdbfe')),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('LEFTPADDING', (0,0), (-1,-1), 10),
-            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f9ff')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#bae6fd')),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
         ]))
         story.append(sd_table)
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))
 
     # SECTION 4: Terminal Power-Tip
-    tip = digest_data.get("terminal_tip", {})
+    tip = digest_data.get("terminal_power_tip", {})
     if tip:
-        story.append(Paragraph("💡 4. TERMINAL & GIT POWER-TIP", section_h1))
+        story.append(Paragraph("4. SYSTEMS & DEBUGGING RECIPE", section_h1))
         tip_content = [
             Paragraph(f"<b>Command:</b> <font color='#0f172a'><code>{tip.get('command', '')}</code></font>", code_text),
             Spacer(1, 2),
-            Paragraph(f"<b>Usage:</b> {tip.get('explanation', '')}", body_text)
+            Paragraph(f"<b>Use Case:</b> {tip.get('use_case', '')}", body_text)
         ]
         tip_table = Table([[tip_content]], colWidths=[540])
         tip_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f1f5f9')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 10),
-            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
         ]))
         story.append(tip_table)
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 8))
 
     # Footer
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceBefore=4, spaceAfter=6))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceBefore=2, spaceAfter=4))
     story.append(Paragraph(
-        "⚡ Generated autonomously by <b>Morning Tech Pulse</b> • Powered by Groq Llama-3.3-70B • GitHub Actions CI/CD ($0 Compute Cost)",
+        "Autonomous Pipeline • Ingested via Hacker News & GitHub APIs • Curated by Groq Llama-3.3-70B • Distributed via Gmail SMTP",
         meta_style
     ))
 
@@ -339,22 +336,22 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
 
 
 def build_email_html(digest_data):
-    """Build clean, modern responsive HTML email body with high contrast cards."""
+    """Render clean, editorial HTML email body without flashy AI slop."""
     today_str = datetime.date.today().strftime('%A, %d %B %Y')
     
-    # Story cards
-    cards_html = ""
+    # Story items
+    stories_html = ""
     for item in digest_data.get("top_stories", [])[:3]:
-        cat = item.get("category", "Tech")
-        cards_html += f"""
-        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 16px;">
-          <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; margin-bottom: 8px;">{cat}</span>
-          <h2 style="margin: 0 0 8px 0; font-size: 17px; color: #0f172a; font-weight: 700;">
+        cat = item.get("category", "Engineering")
+        stories_html += f"""
+        <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; margin-bottom: 6px;">{cat}</div>
+          <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 6px; line-height: 1.3;">
             <a href="{item.get('url', '#')}" style="color: #0f172a; text-decoration: none;">{item.get('headline')}</a>
-          </h2>
-          <p style="margin: 0 0 10px 0; font-size: 14px; color: #334155; line-height: 1.5;">{item.get('summary')}</p>
-          <div style="background-color: #f8fafc; border-left: 3px solid #2563eb; padding: 8px 12px;">
-            <p style="margin: 0; font-size: 13px; color: #1e3a8a; font-weight: 600;">💡 <strong>Why It Matters:</strong> {item.get('why_it_matters')}</p>
+          </div>
+          <div style="font-size: 13.5px; color: #334155; line-height: 1.5; margin-bottom: 10px;">{item.get('summary')}</div>
+          <div style="background-color: #f8fafc; border-left: 3px solid #0284c7; padding: 8px 12px; font-size: 12.5px; color: #0369a1; font-weight: 600; line-height: 1.4;">
+            ⚙️ <strong>Architectural Impact:</strong> {item.get('architectural_impact')}
           </div>
         </div>
         """
@@ -362,41 +359,41 @@ def build_email_html(digest_data):
     # GitHub Gem
     gem = digest_data.get("github_gem", {})
     gem_html = f"""
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-      <h3 style="margin: 0 0 6px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb;">🛠️ GitHub Gem of the Day</h3>
-      <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #0f172a;">
-        <a href="{gem.get('url', '#')}" style="color: #2563eb; text-decoration: none;">{gem.get('repo_name')}</a>
-      </p>
-      <p style="margin: 0 0 8px 0; font-size: 13px; color: #475569;">{gem.get('description')}</p>
-      <div style="background-color: #0f172a; color: #38bdf8; font-family: monospace; padding: 6px 10px; border-radius: 4px; font-size: 12px; margin-bottom: 6px;">
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
+      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 4px;">🛠️ Open-Source Tooling Spotlight</div>
+      <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+        <a href="{gem.get('url', '#')}" style="color: #0284c7; text-decoration: none;">{gem.get('repo_name')}</a>
+      </div>
+      <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">{gem.get('description')}</div>
+      <div style="background-color: #0f172a; color: #38bdf8; font-family: ui-monospace, Menlo, monospace; padding: 6px 10px; border-radius: 4px; font-size: 12px; margin-bottom: 6px;">
         {gem.get('quickstart')}
       </div>
-      <p style="margin: 0; font-size: 12px; color: #64748b;"><strong>Why Use It:</strong> {gem.get('practical_use')}</p>
+      <div style="font-size: 12px; color: #64748b;"><strong>Technical Utility:</strong> {gem.get('technical_utility')}</div>
     </div>
     """
 
     # System Design Card
     sd = digest_data.get("system_design_card", {})
-    bullets = "".join([f"<li style='margin-bottom: 4px;'>{b}</li>" for b in sd.get("how_it_works", [])])
+    bullets = "".join([f"<li style='margin-bottom: 3px;'>{b}</li>" for b in sd.get("mechanism_breakdown", [])])
     sd_html = f"""
-    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-      <h3 style="margin: 0 0 6px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #1d4ed8;">🧠 System Design Micro-Card</h3>
-      <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #1e3a8a;">{sd.get('topic')}</p>
-      <p style="margin: 0 0 8px 0; font-size: 13px; color: #1e40af;"><strong>Problem:</strong> {sd.get('core_problem')}</p>
-      <ul style="margin: 0 0 8px 0; padding-left: 20px; font-size: 13px; color: #1e293b;">
+    <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
+      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284c7; margin-bottom: 4px;">🧠 System Design Architecture Card</div>
+      <div style="font-size: 15px; font-weight: 700; color: #0369a1; margin-bottom: 4px;">{sd.get('topic')}</div>
+      <div style="font-size: 13px; color: #075985; margin-bottom: 6px;"><strong>Core Bottleneck:</strong> {sd.get('core_problem')}</div>
+      <ul style="margin: 0 0 6px 0; padding-left: 18px; font-size: 12.5px; color: #0f172a; line-height: 1.4;">
         {bullets}
       </ul>
-      <p style="margin: 0; font-size: 12px; color: #1d4ed8;"><strong>🏢 Case Study:</strong> {sd.get('real_world_case')}</p>
+      <div style="font-size: 12px; color: #0369a1; font-weight: 600;"><strong>Production Case Study:</strong> {sd.get('production_case_study')}</div>
     </div>
     """
 
     # Terminal Tip
-    tip = digest_data.get("terminal_tip", {})
+    tip = digest_data.get("terminal_power_tip", {})
     tip_html = f"""
-    <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-      <h3 style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569;">💡 Terminal Power-Tip</h3>
-      <code style="background-color: #0f172a; color: #a5f3fc; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 6px;">{tip.get('command')}</code>
-      <p style="margin: 0; font-size: 13px; color: #334155;">{tip.get('explanation')}</p>
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 4px;">⚡ Systems & Debugging Recipe</div>
+      <code style="background-color: #0f172a; color: #38bdf8; font-family: ui-monospace, Menlo, monospace; padding: 3px 6px; border-radius: 4px; font-size: 12px; display: inline-block; margin-bottom: 4px;">{tip.get('command')}</code>
+      <div style="font-size: 12.5px; color: #334155;">{tip.get('use_case')}</div>
     </div>
     """
 
@@ -404,35 +401,34 @@ def build_email_html(digest_data):
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px;">
-      <div style="max-width: 620px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 18px;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
         
-        <!-- Header Banner -->
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px 24px; color: #ffffff;">
-          <p style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38bdf8;">⚡ Autonomous Developer Intelligence</p>
-          <h1 style="margin: 0 0 6px 0; font-size: 24px; font-weight: 800; color: #ffffff;">Morning Tech Pulse</h1>
-          <p style="margin: 0; font-size: 13px; color: #94a3b8;">{today_str} • 3-Min Executive Briefing</p>
+        <!-- Header -->
+        <div style="background-color: #0f172a; padding: 24px 20px; color: #ffffff;">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 4px;">ENGINEERING EXECUTIVE BRIEFING</div>
+          <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 4px;">Morning Tech Pulse</div>
+          <div style="font-size: 12px; color: #cbd5e1;">{today_str} • Prepared for Vivek Kanugula</div>
         </div>
 
-        <!-- Body Content -->
-        <div style="padding: 24px; background-color: #f8fafc;">
-          <h3 style="margin: 0 0 14px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">📰 Top Engineering Breakthroughs</h3>
-          {cards_html}
+        <!-- Content -->
+        <div style="padding: 20px; background-color: #fafafa;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 12px;">1. Core Technical Developments</div>
+          {stories_html}
           {gem_html}
           {sd_html}
           {tip_html}
 
           <!-- PDF Notice -->
-          <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 16px;">
-            <p style="margin: 0; font-size: 13px; color: #854d0e; font-weight: 600;">
-              📎 <strong>Morning_Tech_Pulse.pdf</strong> is attached to this email for offline reading!
-            </p>
+          <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; text-align: center; margin-bottom: 14px;">
+            <div style="font-size: 12.5px; color: #334155; font-weight: 600;">
+              📎 <strong>Morning_Tech_Pulse.pdf</strong> is attached to this email for offline reading.
+            </div>
           </div>
 
           <!-- Footer -->
-          <div style="text-align: center; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b;">
-            <p style="margin: 0 0 4px 0;">Curated autonomously by your <strong>Morning Tech Pulse Agent</strong>.</p>
-            <p style="margin: 0;">Powered by <strong>Groq Llama-3.3-70B</strong> • GitHub Actions CI/CD ($0 Compute Cost)</p>
+          <div style="text-align: center; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #94a3b8;">
+            Curated autonomously via Groq Llama-3.3-70B • Zero compute cost
           </div>
         </div>
 
@@ -444,70 +440,55 @@ def build_email_html(digest_data):
 
 
 def dispatch_via_email(digest_data, pdf_path):
-    """Send clean, responsive HTML briefing + PDF document attachment via Gmail SMTP."""
-    print("📧 [4/4] Dispatching briefing & PDF via Email...")
+    """Deliver briefing + PDF document attachment via Gmail SMTP."""
+    print("📧 [4/4] Delivering briefing and PDF via Gmail SMTP...")
     sender = os.getenv("SENDER_EMAIL")
     recipient = os.getenv("RECEIVER_EMAIL") or sender
     password = os.getenv("GMAIL_APP_PASSWORD")
 
     if not all([sender, password]):
-        print("⚠️ Email credentials missing in environment variables.")
-        print("Required: SENDER_EMAIL, GMAIL_APP_PASSWORD (and optionally RECEIVER_EMAIL)")
-        return
+        raise ValueError("SENDER_EMAIL and GMAIL_APP_PASSWORD must be configured!")
 
     today_str = datetime.date.today().strftime('%d %b %Y')
-    top_story = digest_data.get("top_stories", [{}])[0].get("headline", "Daily Briefing")
-    subject = f"☕ Morning Tech Pulse: {top_story} [{today_str}]"
+    first_topic = digest_data.get("top_stories", [{}])[0].get("headline", "Daily Briefing")
+    subject = f"Morning Tech Pulse: {first_topic} [{today_str}]"
 
-    # Create MIME message
     msg = MIMEMultipart("mixed")
     msg["From"] = f"Morning Tech Pulse <{sender}>"
     msg["To"] = recipient
     msg["Subject"] = subject
 
-    # Attach HTML Body
+    # Attach HTML
     html_content = build_email_html(digest_data)
     msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-    # Attach PDF Document
+    # Attach PDF
     if os.path.exists(pdf_path):
         with open(pdf_path, "rb") as f:
             pdf_attachment = MIMEApplication(f.read(), _subtype="pdf")
             pdf_attachment.add_header('Content-Disposition', 'attachment', filename="Morning_Tech_Pulse.pdf")
             msg.attach(pdf_attachment)
-            print("📎 PDF attached to email.")
 
-    # Send via Gmail SMTP (SSL on port 465)
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
-            # Remove any accidental spaces in app password
-            clean_password = password.replace(" ", "")
-            server.login(sender, clean_password)
-            server.sendmail(sender, [recipient], msg.as_string())
-        print(f"🎉 Email with attached PDF successfully delivered to {recipient}!")
-    except Exception as e:
-        print(f"❌ SMTP delivery failed: {e}")
+    clean_password = password.replace(" ", "")
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+        server.login(sender, clean_password)
+        server.sendmail(sender, [recipient], msg.as_string())
+
+    print(f"🎉 Executive briefing with attached PDF delivered successfully to {recipient}!")
 
 
 def main():
     print("=" * 60)
-    print("🚀 Morning Tech Pulse: Autonomous Daily Intelligence Agent")
+    print("🚀 Running Morning Tech Pulse Pipeline (Zero-Slop Standard)")
     print("=" * 60)
 
-    # Step 1: Collect Raw Signals
     stories, github_repos = fetch_raw_signals()
-
-    # Step 2: Groq Llama-3.3-70B Synthesis
     digest_data = curate_with_groq(stories, github_repos)
-
-    # Step 3: PDF Compilation
     pdf_path = generate_pdf(digest_data)
-
-    # Step 4: Dispatch via Email with HTML + PDF Attachment
     dispatch_via_email(digest_data, pdf_path)
 
     print("=" * 60)
-    print("🏁 Daily Run Completed Successfully!")
+    print("🏁 Pipeline execution finished cleanly.")
     print("=" * 60)
 
 if __name__ == "__main__":
