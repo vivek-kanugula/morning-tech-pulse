@@ -33,6 +33,8 @@ flowchart LR
 
 The repository includes [daily_tech_pulse_n8n.json](daily_tech_pulse_n8n.json), a complete export of the visual drag-and-drop workflow. You can import this single JSON file directly into any **n8n** instance (Desktop, Docker, or Cloud):
 
+![n8n Visual Workflow Canvas](assets/n8n_workflow_canvas.png)
+
 ```mermaid
 flowchart TD
     N1[1. Schedule Trigger\n07:30 AM Daily] --> N2[2. Fetch Hacker News Top IDs]
