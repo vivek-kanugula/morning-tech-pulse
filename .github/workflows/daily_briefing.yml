@@ -1,4 +1,4 @@
-name: Headless n8n Daily Cloud Dispatcher
+name: Daily Morning Tech Pulse Cloud Dispatcher
 
 on:
   schedule:
@@ -19,51 +19,24 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Validate n8n Agent Workflow Definition
+      - name: Validate n8n Workflow Schema
         run: |
-          echo "🔍 Auditing n8n agent workflow schema: daily_tech_pulse_n8n.json"
-          python -c "
-          import json
-          with open('daily_tech_pulse_n8n.json') as f:
-              w = json.load(f)
-          print(f'==> n8n Workflow Title: {w.get(\"name\")}')
-          print(f'==> Total Configured Nodes: {len(w.get(\"nodes\", []))}')
-          for idx, n in enumerate(w.get('nodes', []), 1):
-              print(f'    [{idx}] {n.get(\"name\")} ({n.get(\"type\")})')
-          print('==> n8n Workflow Integrity: 100% VALID')
-          "
+          echo "🔍 Validating n8n JSON workflow schema..."
+          python -m json.tool daily_tech_pulse_n8n.json > /dev/null
+          echo "✅ n8n workflow JSON is syntactically valid."
 
-      - name: Execute Daily Morning Tech Pulse Dispatcher
+      - name: Run Morning Tech Pulse Dispatcher
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          echo "🚀 Triggering autonomous morning briefing dispatch..."
+          echo "🚀 Executing Morning Tech Pulse Pipeline..."
           python main.py
-
-      - name: Archive Morning Tech Pulse PDF
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: morning-tech-pulse-pdf
-          path: Morning_Tech_Pulse.pdf
-          if-no-files-found: ignore
-
-      - name: Publish GitHub Execution Summary
-        if: success()
-        run: |
-          echo "## ⚡ Morning Tech Pulse Cloud Dispatcher: SUCCESS" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status:** ✅ Executed & Delivered" >> $GITHUB_STEP_SUMMARY
-          echo "- **LLM Model:** Groq Architecture Filter" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifacts Generated:** Responsive HTML Email + Styled ReportLab PDF" >> $GITHUB_STEP_SUMMARY
-          echo "- **Delivery Protocol:** Gmail SMTP SSL (Port 465)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Recipient:** \`${{ secrets.RECEIVER_EMAIL }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Schedule:** Daily at 07:30 AM IST (02:00 UTC)" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 Executive 3-page PDF briefing dispatched successfully!"

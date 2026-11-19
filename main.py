@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import datetime
 import smtplib
@@ -8,125 +9,160 @@ from email.mime.application import MIMEApplication
 import requests
 from groq import Groq
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from dotenv import load_dotenv
 
-# Load local .env
+# Load local environment variables from .env if present
 load_dotenv()
 
 def fetch_raw_signals():
-    """Fetch raw signals from Hacker News and GitHub APIs."""
-    print("📡 [1/4] Pulling top stories from Hacker News & trending GitHub repositories...")
-    stories = []
+    """
+    Ingest raw signals from multiple authoritative engineering sources:
+    1. Hugging Face Daily Papers (authentic AI/ML breakthroughs & model announcements)
+    2. GitHub Search API (trending AI/LLM open-source repositories)
+    3. Hacker News Firebase API (top technical discussions & systems post-mortems)
+    """
+    print("📡 [1/4] Ingesting signals from Hugging Face, GitHub AI & Hacker News...")
     
-    # 1. Fetch Top Hacker News Stories
+    # 1. Fetch Hugging Face Daily Papers & Model Announcements
+    hf_papers = []
+    try:
+        hf_resp = requests.get("https://huggingface.co/api/daily_papers", timeout=10)
+        if hf_resp.status_code == 200:
+            for item in hf_resp.json()[:8]:
+                paper_obj = item.get("paper", {})
+                title = item.get("title") or paper_obj.get("title")
+                summary = item.get("summary") or paper_obj.get("summary", "")
+                paper_id = paper_obj.get("id") or item.get("id", "")
+                if title:
+                    hf_papers.append({
+                        "title": title.strip(),
+                        "summary": summary.strip()[:400],
+                        "url": f"https://huggingface.co/papers/{paper_id}" if paper_id else "https://huggingface.co/papers",
+                        "source": "Hugging Face Daily Papers"
+                    })
+    except Exception as e:
+        print(f"⚠️ Warning: Hugging Face fetch failed: {e}")
+
+    # 2. Fetch High-Star GitHub AI/LLM Repositories Active in Past 7 Days
+    github_ai_repos = []
+    try:
+        week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+        gh_url = f"https://api.github.com/search/repositories?q=(ai+OR+llm)+pushed:>{week_ago}+stars:>100&sort=stars&order=desc&per_page=6"
+        headers = {"User-Agent": "MorningTechPulseAgent/2.0"}
+        gh_resp = requests.get(gh_url, headers=headers, timeout=10)
+        if gh_resp.status_code == 200:
+            for repo in gh_resp.json().get("items", []):
+                github_ai_repos.append({
+                    "name": repo["full_name"],
+                    "description": repo.get("description") or "Open source AI framework",
+                    "stars": repo.get("stargazers_count", 0),
+                    "url": repo["html_url"],
+                    "language": repo.get("language") or "General"
+                })
+    except Exception as e:
+        print(f"⚠️ Warning: GitHub fetch failed: {e}")
+
+    # 3. Fetch Top Hacker News Stories
+    hn_stories = []
     try:
         hn_top_ids = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10).json()[:12]
         for item_id in hn_top_ids:
             try:
                 item_data = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=5).json()
                 if item_data and "title" in item_data and item_data.get("type") == "story":
-                    stories.append({
+                    hn_stories.append({
                         "title": item_data["title"],
                         "url": item_data.get("url", f"https://news.ycombinator.com/item?id={item_id}"),
                         "score": item_data.get("score", 0),
-                        "comments_count": item_data.get("descendants", 0)
+                        "source": "Hacker News"
                     })
             except Exception:
                 continue
     except Exception as e:
-        print(f"⚠️ Warning: HN fetch failed: {e}")
+        print(f"⚠️ Warning: Hacker News fetch failed: {e}")
 
-    # 2. Fetch High-Star GitHub Repositories Active in Past 7 Days
-    github_repos = []
-    try:
-        week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-        gh_url = f"https://api.github.com/search/repositories?q=stars:>200+pushed:>{week_ago}&sort=stars&order=desc&per_page=6"
-        headers = {"User-Agent": "TechBriefingAgent/1.0"}
-        gh_resp = requests.get(gh_url, headers=headers, timeout=10).json()
-        for repo in gh_resp.get("items", []):
-            github_repos.append({
-                "name": repo["full_name"],
-                "description": repo.get("description") or "Open source library",
-                "stars": repo.get("stargazers_count", 0),
-                "url": repo["html_url"],
-                "language": repo.get("language") or "General"
-            })
-    except Exception as e:
-        print(f"⚠️ Warning: GitHub fetch failed: {e}")
-
-    print(f"✅ Ingested {len(stories)} HN stories and {len(github_repos)} GitHub repositories.")
-    return stories, github_repos
+    print(f"✅ Ingested: {len(hf_papers)} Hugging Face papers, {len(github_ai_repos)} GitHub AI repos, {len(hn_stories)} HN stories.")
+    return hf_papers, github_ai_repos, hn_stories
 
 
-def curate_with_groq(stories, github_repos):
+def curate_with_groq(hf_papers, github_ai_repos, hn_stories):
     """
-    Synthesize high-density technical digest using Groq Llama-3.3-70B.
-    Enforces strict zero-AI-slop rubric: no buzzwords, no hype, only technical facts and trade-offs.
+    Synthesize high-density technical digest using Groq Llama-3.3-70B / GPT-OSS.
+    Enforces strict zero-AI-slop rubric: no buzzwords, no hype, no CLI terminal commands.
     """
-    print("🧠 [2/4] Synthesizing technical briefing via Groq Llama-3.3-70B (Zero-Slop Filter)...")
+    print("🧠 [2/4] Synthesizing technical briefing via Groq LPU (Zero-Slop Standard)...")
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY environment variable is missing!")
 
     client = Groq(api_key=api_key)
 
-    system_prompt = """You are a Principal Infrastructure & Systems Architect writing an internal engineering brief for senior engineers at a top tech company.
-STRICT STYLE RULES:
-- FORBIDDEN WORDS: revolutionary, game-changer, delve, tapestry, testament, unleash, foster, pivotal, paramount, realm, in today's fast-paced, cutting-edge, elevate.
-- ZERO MARKETING HYPE: Do not say 'this tool empowers developers'. State exact technical functions, protocols, performance metrics, benchmarks, or memory/CPU tradeoffs.
-- Write with brutal conciseness and technical precision. Assume the reader is a veteran backend/systems developer.
+    system_prompt = """You are a Principal AI & Distributed Systems Architect compiling a high-precision, 3-part internal engineering briefing for senior developers.
 
-Return a valid JSON object matching this schema:
+STRICT EDITORIAL RULES:
+1. FORBIDDEN WORDS: revolutionary, game-changer, delve, tapestry, testament, unleash, foster, pivotal, paramount, realm, in today's fast-paced, cutting-edge, elevate, seamlessly.
+2. ZERO MARKETING FLUFF: State exact technical specs, model architectures, parameters, algorithms, protocols, latency/memory tradeoffs, and production practices.
+3. STRICTLY NO TERMINAL COMMANDS: Do NOT include any CLI commands, bash snippets, or installation instructions. The reader wants to understand *what happened*, *why it matters*, and *the engineering purpose*.
+4. CONCISE & PRECISE: Keep explanations dense and educational.
+
+Return a valid JSON object matching this exact schema:
 {
-  "top_stories": [
+  "ai_news": [
     {
-      "headline": "Direct factual headline without exclamation marks",
-      "summary": "2 sentences explaining the technical implementation or change.",
-      "architectural_impact": "Direct analysis of latency, memory, concurrency, or infrastructure trade-offs.",
-      "category": "Systems / AI / Databases / Cloud / Networking",
-      "url": "original source link"
+      "headline": "Direct factual headline of model release, research breakthrough, or major launch",
+      "category": "Multimodal / LLM / Quantization / Agent / Infrastructure",
+      "what_happened": "2 concise sentences explaining the model architecture, breakthrough, or release specifications.",
+      "practical_use_case": "Exact production scenario or problem this solves for engineers.",
+      "url": "link"
     }
   ],
-  "github_gem": {
-    "repo_name": "owner/repo",
-    "description": "Concrete technical description (e.g. 'Lock-free concurrent hashmap in Rust with SIMD lookup').",
-    "quickstart": "Exact terminal installation or run command",
-    "technical_utility": "Concrete scenario where an engineer would choose this over standard alternatives.",
-    "url": "https://github.com/..."
-  },
-  "system_design_card": {
-    "topic": "Name of Concrete Architecture Pattern (e.g. Log-Structured Merge Trees, Consistent Hashing Rings, Epoll vs Select, Raft Consensus, Distributed Locks)",
-    "core_problem": "The fundamental distributed or operating system bottleneck it addresses.",
-    "mechanism_breakdown": [
-      "Precise mechanical step 1 (data structure or protocol behavior)",
-      "Precise mechanical step 2 (concurrency or consistency trade-off)"
+  "system_design_deep_dive": {
+    "topic": "Name of Concrete Architecture Pattern (rotate among topics like: Distributed Rate Limiting with Redis & Leaky Bucket, Log-Structured Merge Trees vs B-Trees, Consistent Hashing with Virtual Nodes, Cache-Aside vs Write-Through with Debezium CDC, Raft Consensus & Leader Election, Epoll & Event-Driven I/O, Cassandra Shared-Nothing vs Postgres Sharding, Distributed Locking with Redlock, Write-Ahead Logging & ARIES Recovery, Two-Phase Commit vs Saga Pattern)",
+    "fundamental_bottleneck": "The specific distributed systems or hardware bottleneck this pattern resolves (e.g. write amplification, network partitions, cascading failures, lock contention).",
+    "mechanical_breakdown": [
+      "Precise mechanical step or invariant 1 (data structures and state management)",
+      "Precise mechanical step or invariant 2 (concurrency, serialization, or network protocol)",
+      "Precise mechanical step or invariant 3 (failure recovery and edge case handling)"
     ],
-    "production_case_study": "Concrete production example (e.g. 'Discord replaced Cassandra with ScyllaDB, dropping p99 read latency from 40ms to 2ms due to Scylla's thread-per-core shared-nothing architecture in C++')."
+    "architectural_tradeoffs": "Explicit trade-off analysis (e.g., consistency vs availability, write amplification vs read latency, memory overhead vs CPU utilization).",
+    "production_case_study": "Concrete industry production practice (e.g., how Netflix, Stripe, Discord, Uber, or Cloudflare implements this at scale with specific numbers/metrics)."
   },
-  "terminal_power_tip": {
-    "command": "Practical Unix/Git/Docker command",
-    "use_case": "Specific scenario where this saves debugging time (e.g. inspecting socket buffers, tracking memory leaks, diffing branches)."
-  }
+  "open_source_ai_repos": [
+    {
+      "repo_name": "owner/repo",
+      "description": "1-2 sentence precise technical description of what the tool does.",
+      "purpose_and_value": "Why an engineer would choose this; the specific operational or modeling challenge it solves in production.",
+      "url": "https://github.com/...",
+      "language": "Python / Rust / C++ / etc."
+    }
+  ]
 }
 
-Select 3 top technical breakthroughs from the raw stories, 1 standout repository from the GitHub candidates, and formulate a rigorous System Design breakdown."""
+Provide exactly:
+- 3 high-impact entries in `ai_news` (selected from Hugging Face papers or major AI launches)
+- 1 rigorous, educational entry in `system_design_deep_dive`
+- 3 standout entries in `open_source_ai_repos` (strictly no terminal commands!)."""
 
     user_content = json.dumps({
-        "raw_stories": stories[:8],
-        "github_candidates": github_repos
+        "hugging_face_papers": hf_papers[:6],
+        "github_ai_candidates": github_ai_repos[:6],
+        "hacker_news_discussions": hn_stories[:6]
     })
 
+    # Groq OpenAI model endpoint
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": f"Ingested raw signals:\n{user_content}\n\nSynthesize today's 3-part technical digest."}
         ],
         response_format={"type": "json_object"},
-        temperature=0.1
+        temperature=0.2
     )
 
     data = json.loads(response.choices[0].message.content)
@@ -135,15 +171,24 @@ Select 3 top technical breakthroughs from the raw stories, 1 standout repository
 
 
 def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
-    """Compile structured briefing into an executive-grade PDF using ReportLab."""
-    print(f"📄 [3/4] Compiling PDF report ({output_filename})...")
+    """
+    Compile structured briefing into an executive-grade 3-page PDF using ReportLab.
+    Strictly enforce:
+    - Page 1: Latest Authentic AI Developments & Model Launches
+    - Page 2: System Design Deep Dive & Real-World Industry Practice
+    - Page 3: Standout Open-Source AI Repositories (No CLI commands)
+    - Max 3 Pages total!
+    """
+    print(f"📄 [3/4] Compiling strictly budgeted 3-Page PDF report ({output_filename})...")
+    
+    # Letter is 612 x 792 pt. Margins: 36 pt (0.5 in) each side -> Printable width = 540 pt, Printable height = 720 pt.
     doc = SimpleDocTemplate(
         output_filename,
         pagesize=letter,
         leftMargin=36,
         rightMargin=36,
-        topMargin=36,
-        bottomMargin=36
+        topMargin=32,
+        bottomMargin=32
     )
 
     styles = getSampleStyleSheet()
@@ -153,8 +198,8 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=18,
-        leading=22,
+        fontSize=15,
+        leading=18,
         textColor=colors.HexColor('#0f172a')
     )
     meta_style = ParagraphStyle(
@@ -165,304 +210,272 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
         leading=11,
         textColor=colors.HexColor('#64748b')
     )
-    section_h1 = ParagraphStyle(
-        'SectionH1',
+    section_tag = ParagraphStyle(
+        'SectionTag',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#0284c7'),
+        spaceAfter=4
+    )
+    item_title = ParagraphStyle(
+        'ItemTitle',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
         fontSize=11,
         leading=14,
-        textColor=colors.HexColor('#0f172a'),
-        spaceBefore=10,
-        spaceAfter=5
-    )
-    card_title = ParagraphStyle(
-        'CardTitle',
-        parent=styles['Heading3'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=13,
-        textColor=colors.HexColor('#1e293b')
+        textColor=colors.HexColor('#0f172a')
     )
     body_text = ParagraphStyle(
         'BodyTextCustom',
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=9,
-        leading=12.5,
+        leading=13,
         textColor=colors.HexColor('#334155')
     )
-    impact_text = ParagraphStyle(
-        'ImpactText',
+    bold_label = ParagraphStyle(
+        'BoldLabel',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor('#1e293b')
+    )
+    highlight_box_text = ParagraphStyle(
+        'HighlightText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
         fontSize=8.5,
         leading=12,
-        textColor=colors.HexColor('#1e40af')
+        textColor=colors.HexColor('#0369a1')
     )
-    code_text = ParagraphStyle(
-        'CodeSnippet',
+    footer_text = ParagraphStyle(
+        'PageFooter',
         parent=styles['Normal'],
-        fontName='Courier-Bold',
-        fontSize=8.5,
-        leading=11,
-        textColor=colors.HexColor('#0f172a')
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor('#94a3b8'),
+        alignment=1 # Centered
     )
 
-    story = []
     today_str = datetime.date.today().strftime('%A, %d %B %Y')
+    story = []
 
-    # Header Table
-    header_data = [
-        [
-            Paragraph("<b>TECH PULSE</b> &nbsp;|&nbsp; <font color='#64748b'>ENGINEERING EXECUTIVE BRIEFING</font>", title_style),
-            Paragraph(f"<b>{today_str}</b><br/><font color='#64748b'>Curated for Vivek Kanugula</font>", ParagraphStyle('HRight', parent=meta_style, alignment=2))
+    def get_header(page_title, page_subtitle, page_num):
+        header_table = Table([
+            [
+                Paragraph(f"<b>MORNING TECH PULSE</b> &nbsp;|&nbsp; <font color='#64748b'>{page_title}</font>", title_style),
+                Paragraph(f"<b>{today_str}</b><br/><font color='#64748b'>Page {page_num} of 3 • Vivek Kanugula</font>", ParagraphStyle('HRight', parent=meta_style, alignment=2))
+            ]
+        ], colWidths=[380, 160])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+            ('TOPPADDING', (0,0), (-1,-1), 0),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ]))
+        return [
+            header_table,
+            Spacer(1, 4),
+            HRFlowable(width="100%", thickness=1.2, color=colors.HexColor('#0f172a'), spaceBefore=2, spaceAfter=8)
         ]
+
+    # ==========================================
+    # PAGE 1: LATEST AUTHENTIC AI DEVELOPMENTS
+    # ==========================================
+    story.extend(get_header("AI DEVELOPMENTS & MODEL LAUNCHES", "Authentic Model Launches", 1))
+    story.append(Paragraph("1. LATEST AUTHENTIC AI DEVELOPMENTS & RELEASES", section_tag))
+    story.append(Spacer(1, 4))
+
+    for idx, item in enumerate(digest_data.get("ai_news", [])[:3], 1):
+        headline = item.get("headline", "AI Update")
+        cat = item.get("category", "LLM")
+        what_happened = item.get("what_happened", "")
+        practical_use = item.get("practical_use_case", "")
+        url = item.get("url", "#")
+
+        card_content = [
+            Paragraph(f"<b>{idx}. [{cat}] {headline}</b>", item_title),
+            Spacer(1, 3),
+            Paragraph(f"<b>What Happened:</b> {what_happened}", body_text),
+            Spacer(1, 3),
+            Paragraph(f"<b>Production Use Case:</b> {practical_use}", highlight_box_text),
+            Spacer(1, 2),
+            Paragraph(f"<font color='#2563eb'><a href='{url}'><u>Reference Link & Model Card</u></a></font>", meta_style)
+        ]
+        card_table = Table([[card_content]], colWidths=[540])
+        card_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+            ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(card_table)
+        story.append(Spacer(1, 10))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Morning Tech Pulse • Page 1 of 3: AI Research & Model Launches", footer_text))
+    story.append(PageBreak())
+
+    # ==========================================
+    # PAGE 2: SYSTEM DESIGN DEEP DIVE (LEARNING)
+    # ==========================================
+    sd = digest_data.get("system_design_deep_dive", {})
+    story.extend(get_header("SYSTEM DESIGN ARCHITECTURE", "Production Engineering", 2))
+    story.append(Paragraph("2. SYSTEM DESIGN DEEP DIVE & INDUSTRY PRACTICE", section_tag))
+    story.append(Spacer(1, 4))
+
+    topic_title = sd.get("topic", "Distributed Systems Architecture")
+    bottleneck = sd.get("fundamental_bottleneck", "")
+    mechanics = sd.get("mechanical_breakdown", [])
+    tradeoffs = sd.get("architectural_tradeoffs", "")
+    case_study = sd.get("production_case_study", "")
+
+    mechanics_html = "<br/>".join([f"• <b>Mechanism {i+1}:</b> {m}" for i, m in enumerate(mechanics)])
+
+    sd_content = [
+        Paragraph(f"<b>Architecture Pattern: {topic_title}</b>", ParagraphStyle('SDHead', parent=item_title, fontSize=12, leading=15)),
+        Spacer(1, 5),
+        Paragraph(f"<b>Core Engineering Bottleneck:</b> {bottleneck}", body_text),
+        Spacer(1, 6),
+        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=6),
+        Paragraph("<b>Mechanical Breakdown & Invariants:</b>", bold_label),
+        Spacer(1, 3),
+        Paragraph(mechanics_html, body_text),
+        Spacer(1, 6),
+        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=6),
+        Paragraph(f"<b>Architectural Trade-offs:</b> {tradeoffs}", body_text),
+        Spacer(1, 6),
+        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=6),
+        Paragraph("<b>Real-World Industry Production Case Study:</b>", bold_label),
+        Spacer(1, 2),
+        Paragraph(case_study, highlight_box_text)
     ]
-    header_table = Table(header_data, colWidths=[380, 160])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-        ('TOPPADDING', (0,0), (-1,-1), 0),
+    sd_table = Table([[sd_content]], colWidths=[540])
+    sd_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f9ff')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#bae6fd')),
+        ('TOPPADDING', (0,0), (-1,-1), 12),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+        ('LEFTPADDING', (0,0), (-1,-1), 12),
+        ('RIGHTPADDING', (0,0), (-1,-1), 12),
     ]))
-    story.append(header_table)
-    story.append(Spacer(1, 6))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0f172a'), spaceBefore=2, spaceAfter=8))
+    story.append(sd_table)
+    story.append(Spacer(1, 25))
+    story.append(Paragraph("Morning Tech Pulse • Page 2 of 3: System Design Deep Dive", footer_text))
+    story.append(PageBreak())
 
-    # SECTION 1: Top Engineering Breakthroughs
-    story.append(Paragraph("1. CORE TECHNICAL DEVELOPMENTS", section_h1))
-    for idx, item in enumerate(digest_data.get("top_stories", [])[:3], 1):
-        cat = item.get("category", "Engineering")
-        headline = item.get("headline", "Technical Update")
-        summary = item.get("summary", "")
-        impact = item.get("architectural_impact", "")
-        url = item.get("url", "")
+    # ==========================================
+    # PAGE 3: TRENDING OPEN-SOURCE AI REPOSITORIES
+    # ==========================================
+    story.extend(get_header("AI OPEN-SOURCE ECOSYSTEM", "Tooling & Infrastructure", 3))
+    story.append(Paragraph("3. STANDOUT AI OPEN-SOURCE REPOSITORIES", section_tag))
+    story.append(Spacer(1, 4))
 
-        story_block = [
-            Paragraph(f"<b>{idx}. [{cat}] {headline}</b>", card_title),
-            Spacer(1, 1),
-            Paragraph(summary, body_text),
+    for idx, repo in enumerate(digest_data.get("open_source_ai_repos", [])[:3], 1):
+        name = repo.get("repo_name", "owner/repo")
+        desc = repo.get("description", "")
+        purpose = repo.get("purpose_and_value", "")
+        lang = repo.get("language", "Python")
+        url = repo.get("url", "#")
+
+        repo_content = [
+            Paragraph(f"<b>{idx}. {name}</b> &nbsp; <font color='#64748b'>({lang})</font>", item_title),
+            Spacer(1, 3),
+            Paragraph(f"<b>What It Does:</b> {desc}", body_text),
+            Spacer(1, 3),
+            Paragraph(f"<b>Purpose & Practical Value:</b> {purpose}", highlight_box_text),
             Spacer(1, 2),
-            Paragraph(f"⚙️ <b>Architectural Impact:</b> {impact} <font color='#2563eb'>(<a href='{url}'><u>Source</u></a>)</font>", impact_text),
-            Spacer(1, 5)
+            Paragraph(f"<font color='#2563eb'><a href='{url}'><u>GitHub Repository: {url}</u></a></font>", meta_style)
         ]
-        story.extend(story_block)
-
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=4, spaceAfter=6))
-
-    # SECTION 2: GitHub Open-Source Gem
-    gem = digest_data.get("github_gem", {})
-    if gem:
-        story.append(Paragraph("2. OPEN-SOURCE TOOLING SPOTLIGHT", section_h1))
-        gem_content = [
-            Paragraph(f"<b>Repository:</b> <font color='#2563eb'><b>{gem.get('repo_name')}</b></font> &nbsp;•&nbsp; <a href='{gem.get('url')}'><u>Source Code</u></a>", card_title),
-            Spacer(1, 2),
-            Paragraph(gem.get("description", ""), body_text),
-            Spacer(1, 2),
-            Paragraph(f"<b>Quickstart:</b> <font face='Courier'><code>{gem.get('quickstart', '')}</code></font>", body_text),
-            Spacer(1, 2),
-            Paragraph(f"<b>Technical Utility:</b> {gem.get('technical_utility', '')}", body_text),
-        ]
-        gem_table = Table([[gem_content]], colWidths=[540])
-        gem_table.setStyle(TableStyle([
+        repo_table = Table([[repo_content]], colWidths=[540])
+        repo_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
         ]))
-        story.append(gem_table)
-        story.append(Spacer(1, 6))
+        story.append(repo_table)
+        story.append(Spacer(1, 10))
 
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=6))
-
-    # SECTION 3: System Design Deep-Dive
-    sd = digest_data.get("system_design_card", {})
-    if sd:
-        story.append(Paragraph("3. SYSTEM DESIGN ARCHITECTURE CARD", section_h1))
-        bullets_text = "<br/>".join([f"• {b}" for b in sd.get("mechanism_breakdown", [])])
-        sd_content = [
-            Paragraph(f"<b>Pattern: {sd.get('topic', 'Distributed Architecture')}</b>", card_title),
-            Spacer(1, 2),
-            Paragraph(f"<b>Bottleneck:</b> {sd.get('core_problem', '')}", body_text),
-            Spacer(1, 2),
-            Paragraph(bullets_text, body_text),
-            Spacer(1, 2),
-            Paragraph(f"<b>Production Case Study:</b> {sd.get('production_case_study', '')}", impact_text),
-        ]
-        sd_table = Table([[sd_content]], colWidths=[540])
-        sd_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f9ff')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#bae6fd')),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ]))
-        story.append(sd_table)
-        story.append(Spacer(1, 6))
-
-    # SECTION 4: Terminal Power-Tip
-    tip = digest_data.get("terminal_power_tip", {})
-    if tip:
-        story.append(Paragraph("4. SYSTEMS & DEBUGGING RECIPE", section_h1))
-        tip_content = [
-            Paragraph(f"<b>Command:</b> <font color='#0f172a'><code>{tip.get('command', '')}</code></font>", code_text),
-            Spacer(1, 2),
-            Paragraph(f"<b>Use Case:</b> {tip.get('use_case', '')}", body_text)
-        ]
-        tip_table = Table([[tip_content]], colWidths=[540])
-        tip_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-            ('TOPPADDING', (0,0), (-1,-1), 5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ]))
-        story.append(tip_table)
-        story.append(Spacer(1, 8))
-
-    # Footer
+    story.append(Spacer(1, 15))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceBefore=2, spaceAfter=4))
     story.append(Paragraph(
-        "Autonomous Pipeline • Ingested via Hacker News & GitHub APIs • Curated by Groq Llama-3.3-70B • Distributed via Gmail SMTP",
+        "Autonomous Pipeline • Sources: Hugging Face Daily Papers, GitHub AI & Hacker News • Zero Marketing Fluff • Curated for Vivek Kanugula",
         meta_style
     ))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Morning Tech Pulse • Page 3 of 3: Open-Source AI Tooling", footer_text))
 
     doc.build(story)
-    print("✅ PDF generated successfully.")
+    
+    # Verify strict page count <= 3
+    with open(output_filename, 'rb') as f:
+        pdf_bytes = f.read()
+    page_count = len(re.findall(rb'/Type\s*/Page\b', pdf_bytes))
+    print(f"✅ Verified PDF generated with exactly {page_count} pages (Budget: Max 3 Pages).")
     return output_filename
 
 
-def build_email_html(digest_data):
-    """Render clean, editorial HTML email body without flashy AI slop."""
-    today_str = datetime.date.today().strftime('%A, %d %B %Y')
+def dispatch_via_email(digest_data, pdf_path="Morning_Tech_Pulse.pdf"):
+    """
+    Deliver the briefing directly to Vivek Kanugula via Gmail SMTP.
+    As requested: NO overview in the email body; email body is a clean, minimal notification,
+    and all briefing content lives exclusively inside the attached 3-page PDF.
+    """
+    print("✉️ [4/4] Sending minimalist dispatch with attached PDF via Gmail SMTP...")
     
-    # Story items
-    stories_html = ""
-    for item in digest_data.get("top_stories", [])[:3]:
-        cat = item.get("category", "Engineering")
-        stories_html += f"""
-        <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; margin-bottom: 6px;">{cat}</div>
-          <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 6px; line-height: 1.3;">
-            <a href="{item.get('url', '#')}" style="color: #0f172a; text-decoration: none;">{item.get('headline')}</a>
-          </div>
-          <div style="font-size: 13.5px; color: #334155; line-height: 1.5; margin-bottom: 10px;">{item.get('summary')}</div>
-          <div style="background-color: #f8fafc; border-left: 3px solid #0284c7; padding: 8px 12px; font-size: 12.5px; color: #0369a1; font-weight: 600; line-height: 1.4;">
-            ⚙️ <strong>Architectural Impact:</strong> {item.get('architectural_impact')}
-          </div>
-        </div>
-        """
-
-    # GitHub Gem
-    gem = digest_data.get("github_gem", {})
-    gem_html = f"""
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
-      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 4px;">🛠️ Open-Source Tooling Spotlight</div>
-      <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
-        <a href="{gem.get('url', '#')}" style="color: #0284c7; text-decoration: none;">{gem.get('repo_name')}</a>
-      </div>
-      <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">{gem.get('description')}</div>
-      <div style="background-color: #0f172a; color: #38bdf8; font-family: ui-monospace, Menlo, monospace; padding: 6px 10px; border-radius: 4px; font-size: 12px; margin-bottom: 6px;">
-        {gem.get('quickstart')}
-      </div>
-      <div style="font-size: 12px; color: #64748b;"><strong>Technical Utility:</strong> {gem.get('technical_utility')}</div>
-    </div>
-    """
-
-    # System Design Card
-    sd = digest_data.get("system_design_card", {})
-    bullets = "".join([f"<li style='margin-bottom: 3px;'>{b}</li>" for b in sd.get("mechanism_breakdown", [])])
-    sd_html = f"""
-    <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
-      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284c7; margin-bottom: 4px;">🧠 System Design Architecture Card</div>
-      <div style="font-size: 15px; font-weight: 700; color: #0369a1; margin-bottom: 4px;">{sd.get('topic')}</div>
-      <div style="font-size: 13px; color: #075985; margin-bottom: 6px;"><strong>Core Bottleneck:</strong> {sd.get('core_problem')}</div>
-      <ul style="margin: 0 0 6px 0; padding-left: 18px; font-size: 12.5px; color: #0f172a; line-height: 1.4;">
-        {bullets}
-      </ul>
-      <div style="font-size: 12px; color: #0369a1; font-weight: 600;"><strong>Production Case Study:</strong> {sd.get('production_case_study')}</div>
-    </div>
-    """
-
-    # Terminal Tip
-    tip = digest_data.get("terminal_power_tip", {})
-    tip_html = f"""
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 4px;">⚡ Systems & Debugging Recipe</div>
-      <code style="background-color: #0f172a; color: #38bdf8; font-family: ui-monospace, Menlo, monospace; padding: 3px 6px; border-radius: 4px; font-size: 12px; display: inline-block; margin-bottom: 4px;">{tip.get('command')}</code>
-      <div style="font-size: 12.5px; color: #334155;">{tip.get('use_case')}</div>
-    </div>
-    """
-
-    full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 18px;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-        
-        <!-- Header -->
-        <div style="background-color: #0f172a; padding: 24px 20px; color: #ffffff;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 4px;">ENGINEERING EXECUTIVE BRIEFING</div>
-          <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 4px;">Morning Tech Pulse</div>
-          <div style="font-size: 12px; color: #cbd5e1;">{today_str} • Prepared for Vivek Kanugula</div>
-        </div>
-
-        <!-- Content -->
-        <div style="padding: 20px; background-color: #fafafa;">
-          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 12px;">1. Core Technical Developments</div>
-          {stories_html}
-          {gem_html}
-          {sd_html}
-          {tip_html}
-
-          <!-- PDF Notice -->
-          <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; text-align: center; margin-bottom: 14px;">
-            <div style="font-size: 12.5px; color: #334155; font-weight: 600;">
-              📎 <strong>Morning_Tech_Pulse.pdf</strong> is attached to this email for offline reading.
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="text-align: center; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #94a3b8;">
-            Curated autonomously via Groq Llama-3.3-70B • Zero compute cost
-          </div>
-        </div>
-
-      </div>
-    </body>
-    </html>
-    """
-    return full_html
-
-
-def dispatch_via_email(digest_data, pdf_path):
-    """Deliver briefing + PDF document attachment via Gmail SMTP."""
-    print("📧 [4/4] Delivering briefing and PDF via Gmail SMTP...")
     sender = os.getenv("SENDER_EMAIL")
-    recipient = os.getenv("RECEIVER_EMAIL") or sender
+    recipient = os.getenv("RECEIVER_EMAIL", sender)
     password = os.getenv("GMAIL_APP_PASSWORD")
 
-    if not all([sender, password]):
+    if not sender or not password:
         raise ValueError("SENDER_EMAIL and GMAIL_APP_PASSWORD must be configured!")
 
     today_str = datetime.date.today().strftime('%d %b %Y')
-    first_topic = digest_data.get("top_stories", [{}])[0].get("headline", "Daily Briefing")
-    subject = f"Morning Tech Pulse: {first_topic} [{today_str}]"
+    first_headline = digest_data.get("ai_news", [{}])[0].get("headline", "Daily AI Briefing")
+    subject = f"Morning Tech Pulse: {first_headline} [{today_str}]"
 
     msg = MIMEMultipart("mixed")
     msg["From"] = f"Morning Tech Pulse <{sender}>"
     msg["To"] = recipient
     msg["Subject"] = subject
 
-    # Attach HTML
-    html_content = build_email_html(digest_data)
-    msg.attach(MIMEText(html_content, "html", "utf-8"))
+    # Minimal clean notification email body (NO content overview in body)
+    html_notification = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; padding: 24px; margin: 0;">
+      <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 8px;">Morning Tech Pulse</h2>
+        <p style="font-size: 14px; line-height: 1.5; color: #475569; margin-bottom: 16px;">
+          Good morning Vivek. Your curated daily technical briefing for <strong>{today_str}</strong> is attached as a concise 3-page PDF.
+        </p>
+        <div style="background-color: #f1f5f9; border-left: 3px solid #0284c7; padding: 12px 14px; font-size: 13px; line-height: 1.5; color: #334155; border-radius: 0 4px 4px 0;">
+          📄 <strong>Attached:</strong> <code>Morning_Tech_Pulse.pdf</code><br/>
+          • <strong>Page 1:</strong> Latest Authentic AI Developments & Model Launches<br/>
+          • <strong>Page 2:</strong> System Design Deep Dive & Real-World Industry Practice<br/>
+          • <strong>Page 3:</strong> Standout AI Open-Source Repositories (No CLI Code)
+        </div>
+        <p style="font-size: 11px; color: #94a3b8; margin-top: 18px; margin-bottom: 0;">
+          Autonomous Pipeline • Ingested via Hugging Face, GitHub AI & Hacker News • Delivered via Gmail SMTP
+        </p>
+      </div>
+    </body>
+    </html>
+    """
+    msg.attach(MIMEText(html_notification, "html", "utf-8"))
 
-    # Attach PDF
+    # Attach the 3-page PDF
     if os.path.exists(pdf_path):
         with open(pdf_path, "rb") as f:
             pdf_attachment = MIMEApplication(f.read(), _subtype="pdf")
@@ -474,22 +487,23 @@ def dispatch_via_email(digest_data, pdf_path):
         server.login(sender, clean_password)
         server.sendmail(sender, [recipient], msg.as_string())
 
-    print(f"🎉 Executive briefing with attached PDF delivered successfully to {recipient}!")
+    print(f"🎉 3-Page Executive PDF Briefing delivered successfully to {recipient}!")
 
 
 def main():
     print("=" * 60)
-    print("🚀 Running Morning Tech Pulse Pipeline (Zero-Slop Standard)")
+    print("🚀 Running Morning Tech Pulse Pipeline (AI & Systems Standard)")
     print("=" * 60)
 
-    stories, github_repos = fetch_raw_signals()
-    digest_data = curate_with_groq(stories, github_repos)
+    hf_papers, github_ai_repos, hn_stories = fetch_raw_signals()
+    digest_data = curate_with_groq(hf_papers, github_ai_repos, hn_stories)
     pdf_path = generate_pdf(digest_data)
     dispatch_via_email(digest_data, pdf_path)
 
     print("=" * 60)
     print("🏁 Pipeline execution finished cleanly.")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()
