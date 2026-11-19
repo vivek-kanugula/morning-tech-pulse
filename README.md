@@ -84,20 +84,6 @@ Every morning, you receive an email with **`Morning_Tech_Pulse.pdf`** attached. 
 └───────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 💬 Developer Testimonials & Feedback
-
-Here is what developers and freshers who receive Morning Tech Pulse have to say:
-
-> *"Most tech newsletters are 90% product promotions and corporate fluff. Reading the System Design page every morning with my coffee has genuinely leveled up how I think about scale. Explaining Distributed Caching with the restaurant waiter analogy made the concept click immediately."*  
-> — **Priya S., Backend Developer**
-
-> *"As a fresher preparing for campus placement interviews, Page 2 is pure gold. It doesn't just explain theoretical concepts—it tells you exactly how companies like Netflix and Discord solved specific bottlenecks in production and what to say when an interviewer asks about trade-offs."*  
-> — **Rohan M., Computer Science Graduate**
-
-> *"I set this up using GitHub Actions and n8n in under 5 minutes. The fact that it compiles a clean, book-grade 3-page PDF with zero colored card clutter, pulls fresh data from Hugging Face every morning, and costs literally $0/month is brilliant."*  
-> — **Alex K., Open Source Contributor & DevOps Engineer**
 
 ---
 
