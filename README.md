@@ -86,10 +86,4 @@ flowchart LR
 
 ---
 
-## 📄 Resume Bullet Points
 
-Add this directly to your CV under **Projects**:
-
-* *"Architected an autonomous Technical Intelligence and Continuous Learning pipeline in Python utilizing **Groq (Llama-3.3-70B)** and **GitHub Actions** running on a 24/7 cron schedule at **$0 compute cost**."*
-* *"Engineered a multi-source data ingestion engine across **Hacker News Firebase API** and **GitHub REST API**, implementing structured LLM schema enforcement to filter marketing hype and extract architectural impact."*
-* *"Developed an automated document generation engine with **ReportLab** and responsive HTML email templates compiling daily **System Design micro-architectures** and **open-source tooling audits**, delivering formatted digests via **Gmail SMTP**."*
