@@ -86,6 +86,12 @@ Every morning, you receive an email with **`Morning_Tech_Pulse.pdf`** attached. 
 └───────────────────────────────────────────────────────────────┘
 ```
 
+### 📬 Mail Delivery Verified
+
+The autonomous agent delivers directly to your inbox every morning via secure Gmail SMTP (SSL:465) with a dynamic subject headline, clean status card, and the compiled 3-page executive PDF attachment:
+
+![Mail Delivery Verified](assets/mail_delivery_verified.png)
+
 
 ---
 
