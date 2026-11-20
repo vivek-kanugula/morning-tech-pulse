@@ -2,9 +2,11 @@ name: Daily Morning Tech Pulse Cloud Dispatcher
 
 on:
   schedule:
-    # 02:00 UTC = 07:30 AM IST (India Standard Time)
-    - cron: '0 2 * * *'
-  workflow_dispatch: # Allows manual 1-click test in GitHub Actions UI
+    # 02:17 UTC = 07:47 AM IST | Offset from '00' to avoid peak GitHub cron queue
+    - cron: '17 2 * * *'
+  workflow_dispatch: # Manual 1-click trigger from GitHub Actions UI
+  repository_dispatch:
+    types: [trigger-morning-pulse] # External cron-job.org webhook trigger (bulletproof backup)
 
 jobs:
   run-daily-pulse:
@@ -26,9 +28,9 @@ jobs:
 
       - name: Validate n8n Workflow Schema
         run: |
-          echo "🔍 Validating n8n JSON workflow schema..."
+          echo "Validating n8n JSON workflow schema..."
           python -m json.tool daily_tech_pulse_n8n.json > /dev/null
-          echo "✅ n8n workflow JSON is syntactically valid."
+          echo "n8n workflow JSON is valid."
 
       - name: Run Morning Tech Pulse Dispatcher
         env:
@@ -37,6 +39,13 @@ jobs:
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          echo "🚀 Executing Morning Tech Pulse Pipeline..."
           python main.py
-          echo "🎉 Executive 3-page PDF briefing dispatched successfully!"
+
+      - name: Upload PDF Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: morning-tech-pulse-${{ github.run_number }}
+          path: Morning_Tech_Pulse.pdf
+          if-no-files-found: ignore
+          retention-days: 7
