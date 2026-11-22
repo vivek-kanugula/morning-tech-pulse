@@ -3,7 +3,8 @@
     "System Design: Distributed Rate Limiting & Token Bucket Algorithms",
     "System Design: Idempotency Keys & Safe API Retries",
     "HLD: Designing an API Gateway Architecture with Rate Limiting & Auth",
-    "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring"
+    "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring",
+    "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -24,7 +25,12 @@
     "sickn33/agentic-awesome-skills",
     "DeusData/codebase-memory-mcp",
     "usebruno/bruno",
-    "streamlit/streamlit"
+    "streamlit/streamlit",
+    "meilisearch/meilisearch",
+    "typst/typst",
+    "aaif-goose/goose",
+    "FuelLabs/fuel-core",
+    "astral-sh/ruff"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -39,6 +45,10 @@
     "PAD: Policy-Aware Data Valuation for Autonomous Driving",
     "Lang-SVG: Hierarchical Image Vectorization with Language Priors",
     "System 1 agents: a method for local, reliable and fast agentic AI",
-    "Toyota, Nissan, and Honda to Standardize Parts to Lower Costs"
+    "Toyota, Nissan, and Honda to Standardize Parts to Lower Costs",
+    "RL Post-Training in Diffusion Transformers Is Activation Steering",
+    "Language Models Can Rewrite Their Own Weights",
+    "AURA: Audio\u2011Driven Streaming Avatar",
+    "Inkling\u20112\u2011Mini in 5.4\u202fGB Memory"
   ]
 }
