@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import random
 import datetime
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -20,165 +21,431 @@ from dotenv import load_dotenv
 # Load local environment variables from .env
 load_dotenv()
 
-# ==========================================
-# 31-DAY DETERMINISTIC SYSTEM DESIGN ROTATION
-# Guarantees a different, non-repeating topic every single day of the month
-# ==========================================
+# History persistence file path
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "delivered_history.json")
+
+
+def load_history():
+    """Load persistent delivery history to strictly prevent repeated topics, repos, and breakthroughs."""
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {
+                    "delivered_topics": data.get("delivered_topics", []),
+                    "delivered_repos": data.get("delivered_repos", []),
+                    "delivered_breakthroughs": data.get("delivered_breakthroughs", [])
+                }
+        except Exception as e:
+            print(f"⚠️ Warning loading delivery history: {e}")
+    return {"delivered_topics": [], "delivered_repos": [], "delivered_breakthroughs": []}
+
+
+def save_history(history):
+    """Persist updated delivery history back to disk."""
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
+        print(f"💾 Persisted delivery history ({len(history.get('delivered_repos', []))} repos, {len(history.get('delivered_topics', []))} topics).")
+    except Exception as e:
+        print(f"⚠️ Warning saving delivery history: {e}")
+
+
+# =========================================================================
+# COMPREHENSIVE SYSTEM DESIGN CURRICULUM (HLD + LLD)
+# Covering Low-Level Design (OOD/Design Patterns) and High-Level Design (Distributed Systems)
+# =========================================================================
 SYSTEM_DESIGN_CURRICULUM = [
+    # -----------------------------
+    # LOW-LEVEL DESIGN (LLD) TOPICS
+    # -----------------------------
     {
-        "topic": "System Design: Distributed Caching & Invalidation Strategies",
-        "focus": "Cache-Aside vs Write-Through vs Write-Behind, cache stampede (thundering herd) mitigation using probabilistic early expiration (XFetch) and distributed mutex locks",
-        "case_study": "Meta (Facebook) scaling Memcached clusters to handle billions of requests per second"
+        "topic": "LLD: In-Memory Cache with LRU Eviction & Concurrency Control",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Doubly linked list combined with Hash Map for O(1) get/put, ReadWriteLock for thread-safe access, and TTL background cleaner",
+        "case_study": "Caffeine and Guava Cache high-performance in-memory caching libraries in Java"
     },
     {
-        "topic": "System Design: Database Sharding & Horizontal Partitioning",
-        "focus": "Range-based vs Hash-based sharding, shard key selection, rebalancing hot partitions, and cross-shard scatter-gather queries",
-        "case_study": "Discord migrating billions of messages from MongoDB to Cassandra and ScyllaDB"
+        "topic": "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Strategy pattern for nearest-spot assignment, State pattern for spot availability, Vehicle inheritance hierarchy, and concurrent slot locking",
+        "case_study": "ParkMobile and automated airport parking garage management systems"
     },
     {
-        "topic": "System Design: Log-Structured Merge (LSM) Trees & Write-Ahead Logs",
-        "focus": "Sequential append-only write-ahead logs (WAL), in-memory MemTables, immutable SSTables, and background compaction vs traditional B-Tree random disk I/O",
-        "case_study": "RocksDB and Apache Cassandra achieving massive write-heavy ingestion with low write amplification"
+        "topic": "LLD: Elevator Dispatch System with Optimal Direction Scheduling (LOOK/SCAN)",
+        "category": "Low-Level Design (LLD)",
+        "focus": "State pattern for Idle/Moving/DoorOpen, LOOK/SCAN disk scheduling algorithm for elevator cars, and centralized request dispatcher queue",
+        "case_study": "Otis and Schindler destination-dispatch elevator banks in skyscrapers"
     },
     {
-        "topic": "System Design: Consistent Hashing & Distributed Ring Topologies",
-        "focus": "Virtual nodes, mapping hash keyspace to a circular ring, minimizing data re-mapping during cluster node joins/leaves, and fault tolerance",
-        "case_study": "Amazon DynamoDB and Discord voice servers dynamically balancing state across clusters"
+        "topic": "LLD: In-Memory Task Scheduler & Thread Pool Engine",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Producer-Consumer pattern with bounded blocking queues, worker thread lifecycle, and Min-Heap priority queue for delayed execution",
+        "case_study": "Java ThreadPoolExecutor and Node.js libuv event loop work queues"
     },
     {
-        "topic": "System Design: Event-Driven Architecture & Message Brokers",
-        "focus": "Partitioned append-only commit logs, consumer group offset management, backpressure mechanisms, and at-least-once vs exactly-once semantics",
-        "case_study": "LinkedIn ingesting and routing trillions of messages daily via Apache Kafka"
+        "topic": "LLD: Splitwise Expense Sharing System with Debt Simplification Graph",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Exact/Percentage/Share split calculation strategies, Directed graph minimum cash flow simplification algorithm, and immutable transaction ledger",
+        "case_study": "Splitwise balance settlement engine minimizing cross-user money transfers"
     },
     {
-        "topic": "System Design: Distributed Rate Limiting & Token Bucket Algorithms",
-        "focus": "Token bucket vs Leaky bucket vs Sliding Window Counters, atomicity in distributed memory using Redis Lua scripts, and client quota enforcement",
-        "case_study": "Stripe and Cloudflare protecting financial APIs from thundering herds and malicious DDoS traffic"
+        "topic": "LLD: Rate Limiter Library at Code Level (Token Bucket & Sliding Window)",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Decorator/Middleware pattern, AtomicLong for lock-free thread safety, sliding window log vs token bucket refill calculation",
+        "case_study": "Resilience4j and Google Guava RateLimiter in microservice SDKs"
     },
     {
-        "topic": "System Design: Distributed Consensus & The Raft Protocol",
-        "focus": "Leader election, randomized election timers, replicated state machine logs, and split-brain resolution through majority quorums (N/2 + 1)",
-        "case_study": "etcd maintaining cluster-wide state consistency and service discovery for Kubernetes"
+        "topic": "LLD: Movie Ticket Booking System with Concurrent Seat Locking",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Optimistic locking with version numbers vs Pessimistic locks for temporary seat holds with TTL, Command pattern for booking lifecycle",
+        "case_study": "BookMyShow and AMC Theatres seat reservation engines during peak blockbuster releases"
     },
     {
-        "topic": "System Design: API Gateway & Circuit Breaking Patterns",
-        "focus": "Cascading failure mitigation, three-state circuit breakers (Closed, Open, Half-Open), timeout budgets, and exponential backoff with jitter",
-        "case_study": "Netflix preventing catastrophic cascade failures across microservices using Hystrix and Resilience4j"
+        "topic": "LLD: Asynchronous Logging Framework with Append-Only Buffer & Rotation",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Ring buffer (Disruptor pattern) for zero-allocation logging, asynchronous worker thread, file rolling policies (size and date)",
+        "case_study": "Log4j2 LMAX Disruptor architecture achieving millions of logs/sec with sub-microsecond latency"
     },
     {
-        "topic": "System Design: CQRS & Event Sourcing Patterns",
-        "focus": "Command Query Responsibility Segregation, immutable event streams as the single source of truth, and asynchronous materialized read projections",
-        "case_study": "Uber ride dispatch and fare tracking systems scaling read and write paths independently"
+        "topic": "LLD: Chess Game Engine with Move Validation & Board State Tracking",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Command pattern for move execution and undo, Polymorphic piece movement rules, Board state representation with 64-bit bitboards",
+        "case_study": "Stockfish and Chess.com move validation and game clock engines"
     },
     {
-        "topic": "System Design: Distributed Locks & The Redlock Algorithm",
-        "focus": "Mutual exclusion across distributed processes, lease timeouts, clock drift hazards, and fencing tokens to prevent split-brain writes",
+        "topic": "LLD: In-Memory Pub-Sub Event Bus with Topic Subscriptions & Backpressure",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Observer pattern, Thread-safe ConcurrentHashMap topic registry, asynchronous fan-out dispatch with bounded queues and drops",
+        "case_study": "Google Guava EventBus and RxJava reactive event streams"
+    },
+    {
+        "topic": "LLD: Snake and Ladder Board Game Engine using Strategy & State Patterns",
+        "category": "Low-Level Design (LLD)",
+        "focus": "State machine for player turns and winning condition, Strategy pattern for dice rolling (biased/random), extensible board layout",
+        "case_study": "Modular board game simulation engines and casino gaming software"
+    },
+    {
+        "topic": "LLD: ATM Machine System with Finite State Machine & Cash Dispenser",
+        "category": "Low-Level Design (LLD)",
+        "focus": "State pattern for Idle/CardInserted/PinEntered/Dispensing, Chain of Responsibility pattern for cash denomination dispensers ($100, $50, $20)",
+        "case_study": "Diebold Nixdorf and NCR ATM banking software architecture"
+    },
+    {
+        "topic": "LLD: Notification Dispatcher with Priority Channels & Template Engine",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Factory pattern for channel handlers (Email, SMS, Push), Strategy pattern for provider failover, Template rendering with caching",
+        "case_study": "Twilio and Courier multi-channel notification routing engines"
+    },
+    {
+        "topic": "LLD: Vending Machine with State Pattern & Coin Inventory Calculator",
+        "category": "Low-Level Design (LLD)",
+        "focus": "State pattern for Ready/MoneyInserted/Dispensing/SoldOut, Greedy change calculation with denomination coin inventory",
+        "case_study": "Smart retail kiosk and automated vending hardware firmware"
+    },
+    {
+        "topic": "LLD: Live Cricket Scoreboard Provider with Observer Pattern (Cricbuzz)",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Observer/Subscriber pattern for real-time ball-by-ball updates, Strategy pattern for match types (T20, ODI, Test), Match state coordinator",
+        "case_study": "Cricbuzz and ESPN Cricinfo real-time live match commentary architectures"
+    },
+    {
+        "topic": "LLD: File System Directory Structure with Composite Pattern",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Composite pattern treating File and Directory polymorphically, Visitor pattern for disk usage calculation and search",
+        "case_study": "Linux virtual file system (VFS) and Unix inode directory tree abstractions"
+    },
+    {
+        "topic": "LLD: Text Editor Undo/Redo Engine with Command Pattern & Memento",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Command pattern encapsulating text edits (insert, delete, replace), Dual-stack Memento pattern for undo/redo history, Piece Table data structure",
+        "case_study": "VS Code text buffer implementation using Piece Trees and Redo stacks"
+    },
+    {
+        "topic": "LLD: Online Shopping Cart & Discount Coupon Engine with Decorator Pattern",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Decorator pattern for stacking promo discounts, Strategy pattern for coupon validation (percentage, flat, BOGO), Pricing pipeline",
+        "case_study": "Shopify checkout pricing engine and Amazon promotional pricing calculators"
+    },
+    {
+        "topic": "LLD: Order Management & Fulfillment Pipeline with State Pattern",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Finite State Machine for OrderCreated/PaymentPending/Shipped/Delivered/Cancelled, Event hooks for inventory reservation",
+        "case_study": "Amazon and Flipkart warehouse order lifecycle state machines"
+    },
+    {
+        "topic": "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Object Pool pattern, Counting Semaphore for max active connections, thread lease timeouts, validation on borrow/return",
+        "case_study": "HikariCP high-performance JDBC connection pool for Java"
+    },
+    {
+        "topic": "LLD: Tic-Tac-Toe Game with N-Dimensional Scalable Board Validation",
+        "category": "Low-Level Design (LLD)",
+        "focus": "O(1) win verification using row/col/diagonal sum counters, Polymorphic player strategies (Human, Minimax AI), Game controller",
+        "case_study": "Google Assistant game skills and game engine turn managers"
+    },
+    {
+        "topic": "LLD: Flight Reservation System with Temporary Seat Hold Expiration",
+        "category": "Low-Level Design (LLD)",
+        "focus": "DelayQueue for seat lock expiration, Optimistic concurrency control for seat allocation, Strategy pattern for dynamic fare calculation",
+        "case_study": "Amadeus and Sabre global airline reservation backends"
+    },
+    {
+        "topic": "LLD: Restaurant Table Reservation System with Conflict Detection",
+        "category": "Low-Level Design (LLD)",
+        "focus": "Interval tree / sweep-line algorithm for overlapping reservation time slots, Composite pattern for dining rooms and table combinations",
+        "case_study": "OpenTable and Resy table allocation engines during peak dining hours"
+    },
+
+    # ------------------------------
+    # HIGH-LEVEL DESIGN (HLD) TOPICS
+    # ------------------------------
+    {
+        "topic": "HLD: Designing a Distributed URL Shortener (TinyURL / Bitly) at Scale",
+        "category": "High-Level Design (HLD)",
+        "focus": "Base62 encoding vs Key Generation Service (KGS), cache layer with Redis, database sharding by hash, analytics click stream",
+        "case_study": "Bitly processing billions of redirects daily with sub-10ms response times"
+    },
+    {
+        "topic": "HLD: Designing a Collaborative Real-Time Document Editor (Google Docs / Figma)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Operational Transformation (OT) vs Conflict-Free Replicated Data Types (CRDTs), WebSocket session affinity, state vector synchronization",
+        "case_study": "Figma multiplayer engine and Google Docs handling concurrent multi-user editing"
+    },
+    {
+        "topic": "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale",
+        "category": "High-Level Design (HLD)",
+        "focus": "Geospatial indexing using Uber H3 hexagonal hierarchical spatial index, driver location stream ingestion, Quadtree spatial search",
+        "case_study": "Uber DISCO dispatch engine matching drivers and riders in real time"
+    },
+    {
+        "topic": "HLD: Designing a Video Streaming Platform (YouTube / Netflix)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Video chunking and asynchronous transcoding pipelines, adaptive bitrate streaming (HLS/DASH), CDN edge caching, origin shielding",
+        "case_study": "Netflix Open Connect CDN appliances and YouTube video ingestion pipeline"
+    },
+    {
+        "topic": "HLD: Designing a Social Media News Feed (Twitter / Instagram)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Fan-out on write (push) for regular users vs Fan-out on read (pull) for celebrities, timeline cache in Redis, ranked feed synthesis",
+        "case_study": "Twitter (X) timeline service and Instagram Explore feed ranking architecture"
+    },
+    {
+        "topic": "HLD: Designing an E-Commerce Flash Sale System (High Concurrency Inventory)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Pre-warming inventory into Redis, atomic Lua decrement scripts, message queue buffering for order creation, circuit breaking",
+        "case_study": "Amazon Prime Day and Alibaba Singles' Day handling hundreds of thousands of checkout requests per second"
+    },
+    {
+        "topic": "HLD: Designing a Distributed Search Autocomplete / Typeahead Engine",
+        "category": "High-Level Design (HLD)",
+        "focus": "Prefix tree (Trie) serialized in memory, top-k frequent completions pre-computed at each node, weekly map-reduce frequency updates",
+        "case_study": "Google Search typeahead and Amazon product search autocompletion"
+    },
+    {
+        "topic": "HLD: Designing a Global Web Crawler at Internet Scale",
+        "category": "High-Level Design (HLD)",
+        "focus": "Frontier priority queue, Bloom filter URL deduplication, politeness domain rate-limiting, DNS caching, distributed workers",
+        "case_study": "Common Crawl and Google Googlebot crawling billions of web pages monthly"
+    },
+    {
+        "topic": "HLD: Designing an Instant Messaging & Live Chat Platform (WhatsApp / Discord)",
+        "category": "High-Level Design (HLD)",
+        "focus": "WebSocket gateway connection managers, ephemeral presence servers, Cassandra/ScyllaDB message stores, push notification bridge",
+        "case_study": "Discord handling millions of concurrent voice and chat connections"
+    },
+    {
+        "topic": "HLD: Designing a Cloud File Storage & Synchronization Service (Dropbox)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Content-addressable block chunking (SHA-256), client-side deduplication, metadata synchronization service, Delta sync protocol",
+        "case_study": "Dropbox desktop and cloud synchronization engine"
+    },
+    {
+        "topic": "HLD: Designing a Real-Time Proximity Service (Yelp / Nearby Places)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Geohash indexing, spatial database queries (PostGIS), quadtree spatial decomposition, read-heavy caching strategies",
+        "case_study": "Yelp search engine locating businesses within radius boundaries"
+    },
+    {
+        "topic": "HLD: Designing a Distributed Metrics Collection & Alerting Platform (Datadog)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Time-series database (TSDB), rollup aggregations, LSM tree write optimization, push vs pull metric collection, sliding window alerts",
+        "case_study": "Prometheus and Datadog ingesting billions of metric datapoints per minute"
+    },
+    {
+        "topic": "HLD: Designing an E-Commerce Payment Processing Gateway (Stripe)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Idempotency keys, Two-Phase Commit with bank networks, audit logging, reconciliation batch engines, transactional outbox",
+        "case_study": "Stripe payments infrastructure processing hundreds of billions in transaction volume"
+    },
+    {
+        "topic": "HLD: Designing a Distributed Job Scheduler (Cron at Global Scale)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Leader election, partition leases, hashed tick wheel, persistent state in Postgres, worker heartbeating and job failover",
+        "case_study": "Temporal and Airbnb Chronos distributing scheduled tasks across server fleets"
+    },
+    {
+        "topic": "HLD: Designing an API Gateway Architecture with Rate Limiting & Auth",
+        "category": "High-Level Design (HLD)",
+        "focus": "Reverse proxy routing, JWT signature verification at edge, distributed rate limiting with Redis, request hedging and timeout budgets",
+        "case_study": "Kong, Envoy, and Netflix Zuul managing edge traffic"
+    },
+    {
+        "topic": "HLD: Designing a Vector Similarity Search Engine for Generative AI (RAG)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Dense embeddings, Hierarchical Navigable Small World (HNSW) indexing, approximate nearest neighbors (ANN), metadata filtering",
+        "case_study": "Pinecone, Milvus, and Spotify audio recommendation engines"
+    },
+    {
+        "topic": "HLD: Designing a Distributed Caching Architecture & Invalidation Waves",
+        "category": "High-Level Design (HLD)",
+        "focus": "Cache-Aside vs Write-Through, XFetch probabilistic early recomputation, Thundering Herd mutex locks, consistent hashing ring",
+        "case_study": "Meta scaling Memcached to billions of requests per second"
+    },
+    {
+        "topic": "HLD: Designing Database Sharding & Partition Key Topologies",
+        "category": "High-Level Design (HLD)",
+        "focus": "Range-based vs Hash-based sharding, shard key selection, rebalancing hot partitions, cross-shard scatter-gather queries",
+        "case_study": "Discord migrating billions of messages from MongoDB to ScyllaDB"
+    },
+    {
+        "topic": "HLD: Designing Log-Structured Merge (LSM) Trees & Write-Ahead Logs",
+        "category": "High-Level Design (HLD)",
+        "focus": "Append-only write-ahead logs (WAL), in-memory MemTables, immutable SSTables, sequential disk I/O vs random B-Tree I/O",
+        "case_study": "RocksDB and Apache Cassandra achieving massive write throughput"
+    },
+    {
+        "topic": "HLD: Designing Consistent Hashing & Ring Topologies for Dynamic Elastic Clusters",
+        "category": "High-Level Design (HLD)",
+        "focus": "Virtual nodes, circular keyspace mapping, minimal data movement during scale-in/scale-out events, replication factor",
+        "case_study": "Amazon DynamoDB and Discord voice servers dynamically routing state"
+    },
+    {
+        "topic": "HLD: Designing an Event-Driven Architecture with Partitioned Commit Logs (Kafka)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Partitioned commit logs, consumer group offset tracking, backpressure mechanisms, at-least-once vs exactly-once semantics",
+        "case_study": "LinkedIn ingesting trillions of messages daily via Apache Kafka"
+    },
+    {
+        "topic": "HLD: Designing Distributed Consensus using the Raft Protocol",
+        "category": "High-Level Design (HLD)",
+        "focus": "Leader election, randomized election timers, replicated state machine logs, quorum-based split-brain resolution (N/2 + 1)",
+        "case_study": "etcd powering state consistency and orchestration in Kubernetes"
+    },
+    {
+        "topic": "HLD: Designing CQRS & Event Sourcing Architecture for Auditable Financial Ledgers",
+        "category": "High-Level Design (HLD)",
+        "focus": "Command Query Responsibility Segregation, immutable event streams as the source of truth, asynchronous materialized read projections",
+        "case_study": "Uber dispatch and Amazon banking ledger architectures"
+    },
+    {
+        "topic": "HLD: Designing Distributed Locks with Redlock Algorithm & Fencing Tokens",
+        "category": "High-Level Design (HLD)",
+        "focus": "Mutual exclusion across distributed nodes, lease timeouts, clock drift hazards, fencing tokens preventing split-brain writes",
         "case_study": "Google Chubby lock service and Redis distributed lock implementations"
     },
     {
-        "topic": "System Design: Bloom Filters & Count-Min Sketches for Stream Deduplication",
-        "focus": "Probabilistic data structures, k independent hash functions, space efficiency with zero false negatives, and frequency estimation at high throughput",
-        "case_study": "Google Chrome checking malicious URLs and Bigtable avoiding expensive disk reads for non-existent keys"
-    },
-    {
-        "topic": "System Design: Vector Databases & Approximate Nearest Neighbors (ANN)",
-        "focus": "High-dimensional embeddings, Hierarchical Navigable Small World (HNSW) graphs, Product Quantization, and cosine similarity indexing",
-        "case_study": "Spotify music recommendation embeddings and Pinecone similarity search at scale"
-    },
-    {
-        "topic": "System Design: Geo-Distributed Databases & Multi-Region Consistency",
-        "focus": "Cross-region network latency, TrueTime synchronization, Raft consensus across availability zones, and active-active replication",
+        "topic": "HLD: Designing Geo-Distributed Multi-Region Databases with Active-Active Replication",
+        "category": "High-Level Design (HLD)",
+        "focus": "Cross-region network latency, TrueTime synchronization, Raft consensus across availability zones, active-active multi-master replication",
         "case_study": "CockroachDB and Google Cloud Spanner delivering globally consistent ACID transactions"
     },
     {
-        "topic": "System Design: Reverse Proxies & HTTP/3 QUIC Edge Termination",
-        "focus": "TCP Head-of-Line blocking mitigation, UDP-based QUIC multiplexing, TLS 1.3 0-RTT resumption, and Anycast routing",
+        "topic": "HLD: Designing Reverse Proxies & HTTP/3 QUIC Edge Termination Networks",
+        "category": "High-Level Design (HLD)",
+        "focus": "TCP Head-of-Line blocking mitigation, UDP-based QUIC multiplexing, TLS 1.3 0-RTT resumption, Anycast routing",
         "case_study": "Cloudflare and Fastly edge networks accelerating global content delivery"
     },
     {
-        "topic": "System Design: Distributed Tracing & OpenTelemetry Context Propagation",
-        "focus": "Trace IDs, parent-child span trees, W3C TraceContext headers, async context loss, and adaptive tail-based sampling",
-        "case_study": "Uber Jaeger and OpenTelemetry tracking millions of microservice spans in real time"
+        "topic": "HLD: Designing Database Connection Pooling & Thread-Per-Core Architectures",
+        "category": "High-Level Design (HLD)",
+        "focus": "Connection exhaustion, Epoll/kqueue non-blocking event loops, shared-nothing memory models, eliminating OS thread context switching",
+        "case_study": "ScyllaDB thread-per-core architecture handling millions of IOPS vs PostgreSQL PgBouncer"
     },
     {
-        "topic": "System Design: Database Connection Pooling & Thread-Per-Core Architectures",
-        "focus": "Connection exhaustion, Epoll/kqueue non-blocking event loops, shared-nothing memory models, and avoiding OS thread context switching",
-        "case_study": "PostgreSQL with PgBouncer vs ScyllaDB thread-per-core architecture handling massive concurrency"
-    },
-    {
-        "topic": "System Design: Idempotency Keys & Safe API Retries",
-        "focus": "At-least-once delivery duplicates, atomic unique constraint locking, cached response return on retry, and transactional outbox pattern",
-        "case_study": "Stripe payment APIs ensuring customers are never double-charged during network timeouts"
-    },
-    {
-        "topic": "System Design: Distributed Object Storage & Erasure Coding",
+        "topic": "HLD: Designing Distributed Object Storage with Reed-Solomon Erasure Coding",
+        "category": "High-Level Design (HLD)",
         "focus": "Reed-Solomon (M+N) parity encoding, bit-rot detection, overcoming multi-drive failures without full 3x replication overhead",
         "case_study": "AWS S3 and MinIO achieving 11 nines of durability with low storage multiplication"
     },
     {
-        "topic": "System Design: WebSockets vs Server-Sent Events (SSE) vs Long-Polling",
-        "focus": "Full-duplex TCP vs unidirectional HTTP streaming, keep-alive heartbeat pings, memory consumption per idle connection, and load balancer sticky sessions",
+        "topic": "HLD: Designing WebSockets vs Server-Sent Events vs Long-Polling for Real-Time State",
+        "category": "High-Level Design (HLD)",
+        "focus": "Full-duplex TCP vs unidirectional HTTP streaming, keep-alive heartbeat pings, memory consumption per idle connection, load balancer sticky sessions",
         "case_study": "Slack real-time messaging gateway and Figma multiplayer canvas synchronization"
     },
     {
-        "topic": "System Design: Two-Phase Commit (2PC) vs The Saga Pattern",
+        "topic": "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices",
+        "category": "High-Level Design (HLD)",
         "focus": "Synchronous distributed transaction locks and coordinator single point of failure vs asynchronous choreograph/orchestrated compensating transactions",
         "case_study": "Uber and Amazon managing distributed order and fulfillment lifecycles across microservices"
     },
     {
-        "topic": "System Design: B+ Tree Storage Engines vs Hash Indexes",
-        "focus": "Disk block alignment, page splitting, range scan efficiency vs point lookup O(1) performance in relational storage engines",
-        "case_study": "MySQL InnoDB B+ Tree indexing supporting high-concurrency transactional queries"
-    },
-    {
-        "topic": "System Design: Content Delivery Networks (CDN) & Dynamic Origin Shielding",
-        "focus": "Origin shielding, stale-while-revalidate caching headers, purge invalidation waves, and edge token verification",
+        "topic": "HLD: Designing Content Delivery Networks (CDN) & Dynamic Origin Shielding",
+        "category": "High-Level Design (HLD)",
+        "focus": "Origin shielding, stale-while-revalidate caching headers, purge invalidation waves, edge token verification",
         "case_study": "Netflix Open Connect appliance architecture delivering video streams close to end-users"
     },
     {
-        "topic": "System Design: Search Engines & Inverted Index Architecture",
-        "focus": "Text tokenization, posting lists, term frequency-inverse document frequency (TF-IDF), BM25 scoring, and distributed shards",
+        "topic": "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring",
+        "category": "High-Level Design (HLD)",
+        "focus": "Text tokenization, posting lists, term frequency-inverse document frequency (TF-IDF), BM25 scoring, distributed shards",
         "case_study": "Elasticsearch and Apache Lucene handling real-time search queries across terabytes of documents"
     },
     {
-        "topic": "System Design: Service Mesh & Envoy Sidecar Data Planes",
-        "focus": "Mutual TLS (mTLS) zero-trust identity, sidecar proxy routing, dynamic traffic splitting, and circuit breaking at the infrastructure layer",
+        "topic": "HLD: Designing Service Mesh & Envoy Sidecar Data Planes",
+        "category": "High-Level Design (HLD)",
+        "focus": "Mutual TLS (mTLS) zero-trust identity, sidecar proxy routing, dynamic traffic splitting, circuit breaking at infrastructure layer",
         "case_study": "Lyft and Google Cloud service mesh architectures decoupling network policies from application code"
     },
     {
-        "topic": "System Design: Zero-Downtime Database Schema Migrations",
-        "focus": "Expand and Contract pattern, backward-compatible dual writing, shadow column backfills, and zero-lock DDL alterations",
+        "topic": "HLD: Designing Zero-Downtime Database Schema Migrations with Expand/Contract",
+        "category": "High-Level Design (HLD)",
+        "focus": "Expand and Contract pattern, backward-compatible dual writing, shadow column backfills, zero-lock DDL alterations",
         "case_study": "GitHub and Stripe executing live database schema migrations under continuous payment traffic"
     },
     {
-        "topic": "System Design: Microservices vs Modular Monolith & Domain Boundaries",
-        "focus": "Domain-Driven Design (DDD), bounded contexts, network hop overhead, distributed tracing complexity, and single-deployment velocity",
+        "topic": "HLD: Designing Microservices vs Modular Monolith & Domain Decomposition (DDD)",
+        "category": "High-Level Design (HLD)",
+        "focus": "Domain-Driven Design (DDD), bounded contexts, network hop overhead, distributed tracing complexity, single-deployment velocity",
         "case_study": "Amazon Prime Video moving from serverless microservices to monolithic container clusters to cut compute costs by 90%"
     },
     {
-        "topic": "System Design: Distributed Task Scheduling & Priority Delay Queues",
-        "focus": "Dead-letter exchanges, exponential retry queues, worker heartbeating, distributed cron timers, and partition leases",
+        "topic": "HLD: Designing Distributed Task Scheduling & Priority Delay Queues",
+        "category": "High-Level Design (HLD)",
+        "focus": "Dead-letter exchanges, exponential retry queues, worker heartbeating, distributed cron timers, partition leases",
         "case_study": "Temporal and Celery orchestration engines executing mission-critical long-running workflows"
     },
     {
-        "topic": "System Design: Load Balancing Algorithms: Least-Connections vs Peak EWMA",
-        "focus": "Round-robin limitations, weighted least connections, Peak Exponentially Weighted Moving Average (EWMA), and Power of Two Random Choices",
+        "topic": "HLD: Designing Load Balancing Algorithms: Weighted Least-Connections vs Peak EWMA",
+        "category": "High-Level Design (HLD)",
+        "focus": "Round-robin limitations, weighted least connections, Peak Exponentially Weighted Moving Average (EWMA), Power of Two Random Choices",
         "case_study": "HAProxy and Twitter Finagle routing traffic with minimal latency variance"
     },
     {
-        "topic": "System Design: Disaster Recovery & Chaos Engineering (RPO and RTO)",
-        "focus": "Recovery Point Objective (RPO) vs Recovery Time Objective (RTO), warm standby vs active-active failover, and automated fault injection",
+        "topic": "HLD: Designing Disaster Recovery & Chaos Engineering for High Availability",
+        "category": "High-Level Design (HLD)",
+        "focus": "Recovery Point Objective (RPO) vs Recovery Time Objective (RTO), warm standby vs active-active failover, automated fault injection",
         "case_study": "Netflix Chaos Monkey deliberately terminating production instances to enforce resilient self-healing architectures"
     },
     {
-        "topic": "System Design: Gossip Protocols & Decentralized Node Failure Detection",
-        "focus": "Epidemic dissemination algorithms, Phi Accrual failure detection, heartbeat gossip rounds, and eventual cluster convergence",
+        "topic": "HLD: Designing Gossip Protocols & Decentralized Node Failure Detection",
+        "category": "High-Level Design (HLD)",
+        "focus": "Epidemic dissemination algorithms, Phi Accrual failure detection, heartbeat gossip rounds, eventual cluster convergence",
         "case_study": "Apache Cassandra and HashiCorp Consul maintaining cluster state across thousands of nodes without a centralized master"
     },
     {
-        "topic": "System Design: Read-Your-Own-Writes Consistency & Master-Replica Lag",
-        "focus": "Asynchronous replication lag, sticky user sessions, reading from master on mutation, and causal consistency tracking via vector clocks",
+        "topic": "HLD: Designing Read-Your-Own-Writes Consistency under Asynchronous Replication Lag",
+        "category": "High-Level Design (HLD)",
+        "focus": "Asynchronous replication lag, sticky user sessions, reading from master on mutation, causal consistency tracking via vector clocks",
         "case_study": "Meta (Instagram) ensuring immediate feed post visibility for authoring users despite global replica lag"
+    },
+    {
+        "topic": "HLD: Designing Bloom Filters & Count-Min Sketches for High-Throughput Stream Deduplication",
+        "category": "High-Level Design (HLD)",
+        "focus": "Probabilistic data structures, k independent hash functions, space efficiency with zero false negatives, frequency estimation",
+        "case_study": "Google Chrome checking malicious URLs and Bigtable avoiding expensive disk reads for non-existent keys"
     }
 ]
 
@@ -216,26 +483,29 @@ def sanitize_text(text: str) -> str:
     return text
 
 
-def fetch_raw_signals():
+def fetch_raw_signals(history):
     """
     Ingest raw signals across multiple authoritative tech and open-source sources:
     1. Hugging Face Daily Papers (authentic AI/ML breakthroughs & model announcements)
-    2. GitHub Search API (authenticated query for high-star trending developer tools across Full Stack, DevOps, Systems, AI)
+    2. GitHub Search API (Authenticated query across multiple diverse categories, filtering out any previously delivered repos)
     3. Hacker News Firebase API (top engineering discussions & post-mortems)
     """
     print("📡 [1/4] Ingesting signals from Hugging Face, GitHub & Hacker News...")
     
+    delivered_repos_set = set(r.lower() for r in history.get("delivered_repos", []))
+    delivered_breakthroughs_set = set(b.lower() for b in history.get("delivered_breakthroughs", []))
+
     # 1. Hugging Face Daily Papers
     hf_papers = []
     try:
         hf_resp = requests.get("https://huggingface.co/api/daily_papers", timeout=10)
         if hf_resp.status_code == 200:
-            for item in hf_resp.json()[:10]:
+            for item in hf_resp.json()[:12]:
                 paper_obj = item.get("paper", {})
                 title = item.get("title") or paper_obj.get("title")
                 summary = item.get("summary") or paper_obj.get("summary", "")
                 paper_id = paper_obj.get("id") or item.get("id", "")
-                if title:
+                if title and title.strip().lower() not in delivered_breakthroughs_set:
                     hf_papers.append({
                         "title": title.strip(),
                         "summary": summary.strip()[:350],
@@ -244,48 +514,68 @@ def fetch_raw_signals():
     except Exception as e:
         print(f"⚠️ Warning: Hugging Face fetch failed: {e}")
 
-    # 2. Trending GitHub Repositories across tech stack (Authenticated to prevent 403 Rate Limit)
+    # 2. GitHub Repositories Across Broad Categories (Strict anti-repetition filter)
     github_repos = []
+    seen_names = set()
     gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-    gh_headers = {"User-Agent": "MorningTechPulseAgent/3.0"}
+    gh_headers = {"User-Agent": "MorningTechPulseAgent/4.0"}
     if gh_token:
         gh_headers["Authorization"] = f"token {gh_token}"
 
-    try:
-        month_ago = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
-        gh_url = f"https://api.github.com/search/repositories?q=created:>{month_ago}+stars:>80&sort=stars&order=desc&per_page=15"
-        gh_resp = requests.get(gh_url, headers=gh_headers, timeout=10)
-        if gh_resp.status_code == 200:
-            for repo in gh_resp.json().get("items", []):
-                github_repos.append({
-                    "name": repo["full_name"],
-                    "description": repo.get("description") or "Open source developer tool",
-                    "stars": f"{repo.get('stargazers_count', 0):,} Stars",
-                    "url": repo["html_url"],
-                    "language": repo.get("language") or "General"
-                })
-        else:
-            print(f"⚠️ Warning: Primary GitHub search returned status {gh_resp.status_code}")
-    except Exception as e:
-        print(f"⚠️ Warning: GitHub fetch failed: {e}")
+    # Diverse search queries spanning modern tools, legendary utilities, systems, and languages
+    search_queries = [
+        "topic:developer-tools+stars:1000..60000&sort=stars&order=desc",
+        "topic:cli+stars:1500..50000&sort=stars&order=desc",
+        "topic:database+stars:1000..60000&sort=stars&order=desc",
+        "language:rust+stars:2000..60000&sort=stars&order=desc",
+        "language:go+stars:2000..60000&sort=stars&order=desc",
+        "language:typescript+stars:2000..60000&sort=stars&order=desc",
+        "language:python+stars:2000..60000&sort=stars&order=desc",
+        f"created:>{(datetime.date.today() - datetime.timedelta(days=60)).isoformat()}+stars:>80&sort=stars&order=desc"
+    ]
+    # Pick a random subset of 3-4 query angles each day for variety
+    selected_queries = random.sample(search_queries, min(4, len(search_queries)))
 
-    # Fallback to broad active repos query if primary search returned fewer than 5 items
+    for q in selected_queries:
+        try:
+            gh_url = f"https://api.github.com/search/repositories?q={q}&per_page=12"
+            gh_resp = requests.get(gh_url, headers=gh_headers, timeout=10)
+            if gh_resp.status_code == 200:
+                for repo in gh_resp.json().get("items", []):
+                    name = repo["full_name"]
+                    name_lower = name.lower()
+                    if name_lower not in delivered_repos_set and name_lower not in seen_names:
+                        seen_names.add(name_lower)
+                        github_repos.append({
+                            "name": name,
+                            "description": repo.get("description") or "Open source developer tool",
+                            "stars": f"{repo.get('stargazers_count', 0):,} Stars",
+                            "url": repo["html_url"],
+                            "language": repo.get("language") or "General"
+                        })
+        except Exception as e:
+            print(f"⚠️ Warning: GitHub query failed for '{q}': {e}")
+
+    # Fallback to general high-star active repos if needed
     if len(github_repos) < 5:
         try:
-            week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-            gh_url_fallback = f"https://api.github.com/search/repositories?q=pushed:>{week_ago}+stars:1000..50000&sort=updated&order=desc&per_page=12"
-            gh_resp_fallback = requests.get(gh_url_fallback, headers=gh_headers, timeout=10)
-            if gh_resp_fallback.status_code == 200:
-                for repo in gh_resp_fallback.json().get("items", []):
-                    github_repos.append({
-                        "name": repo["full_name"],
-                        "description": repo.get("description") or "Open source developer tool",
-                        "stars": f"{repo.get('stargazers_count', 0):,} Stars",
-                        "url": repo["html_url"],
-                        "language": repo.get("language") or "General"
-                    })
+            gh_url_fb = "https://api.github.com/search/repositories?q=stars:500..100000&sort=updated&order=desc&per_page=20"
+            gh_resp_fb = requests.get(gh_url_fb, headers=gh_headers, timeout=10)
+            if gh_resp_fb.status_code == 200:
+                for repo in gh_resp_fb.json().get("items", []):
+                    name = repo["full_name"]
+                    name_lower = name.lower()
+                    if name_lower not in delivered_repos_set and name_lower not in seen_names:
+                        seen_names.add(name_lower)
+                        github_repos.append({
+                            "name": name,
+                            "description": repo.get("description") or "Open source developer tool",
+                            "stars": f"{repo.get('stargazers_count', 0):,} Stars",
+                            "url": repo["html_url"],
+                            "language": repo.get("language") or "General"
+                        })
         except Exception as e:
-            print(f"⚠️ Warning: Secondary GitHub search failed: {e}")
+            print(f"⚠️ Warning: Secondary GitHub fallback failed: {e}")
 
     # 3. Hacker News Top Stories
     hn_stories = []
@@ -295,27 +585,47 @@ def fetch_raw_signals():
             try:
                 item_data = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=5).json()
                 if item_data and "title" in item_data and item_data.get("type") == "story":
-                    hn_stories.append({
-                        "title": item_data["title"],
-                        "url": item_data.get("url", f"https://news.ycombinator.com/item?id={item_id}"),
-                        "score": item_data.get("score", 0)
-                    })
+                    title = item_data["title"]
+                    if title.strip().lower() not in delivered_breakthroughs_set:
+                        hn_stories.append({
+                            "title": title,
+                            "url": item_data.get("url", f"https://news.ycombinator.com/item?id={item_id}"),
+                            "score": item_data.get("score", 0)
+                        })
             except Exception:
                 continue
     except Exception as e:
         print(f"⚠️ Warning: Hacker News fetch failed: {e}")
 
-    print(f"✅ Ingested: {len(hf_papers)} HF papers, {len(github_repos)} GitHub repos, {len(hn_stories)} HN stories.")
+    print(f"✅ Ingested: {len(hf_papers)} fresh HF papers, {len(github_repos)} un-delivered GitHub repos, {len(hn_stories)} fresh HN stories.")
     return hf_papers, github_repos, hn_stories
 
 
-def curate_with_groq(hf_papers, github_repos, hn_stories):
+def select_system_design_topic(history):
+    """
+    Randomly select an undelivered topic from the entire System Design curriculum (HLD + LLD).
+    Ensures zero repeats across runs.
+    """
+    delivered_topics = set(t.lower() for t in history.get("delivered_topics", []))
+    available_topics = [t for t in SYSTEM_DESIGN_CURRICULUM if t["topic"].lower() not in delivered_topics]
+    
+    if not available_topics:
+        print("🔄 All 64+ topics have been delivered! Refreshing available cycle.")
+        history["delivered_topics"] = []
+        available_topics = SYSTEM_DESIGN_CURRICULUM
+
+    selected_topic = random.choice(available_topics)
+    print(f"🎯 Randomly Selected System Design Topic: [{selected_topic['category']}] -> {selected_topic['topic']}")
+    return selected_topic
+
+
+def curate_with_groq(hf_papers, github_repos, hn_stories, today_topic):
     """
     Synthesize high-density technical digest using Groq LPU (GPT-OSS).
     Strict rules:
-    - Section 1: 4 genuine daily AI/ML breakthroughs synthesized EXCLUSIVELY from today's live Hugging Face papers or Hacker News. No stale hallucinated releases (GPT-4 Turbo, Claude 3.5, etc.)!
-    - Section 2: Deterministic daily System Design Masterclass rotated by day of year across 31 topics. No repeating!
-    - Section 3: 5 standout developer repositories chosen EXCLUSIVELY from today's live ingested GitHub candidates.
+    - Section 1: 4 genuine daily AI/ML breakthroughs synthesized EXCLUSIVELY from today's live Hugging Face papers or Hacker News.
+    - Section 2: Full-page System Design Masterclass on the randomly chosen HLD/LLD topic.
+    - Section 3: 5 standout developer repositories chosen EXCLUSIVELY from today's un-delivered GitHub candidates.
     - Strictly NO terminal commands or CLI code snippets!
     """
     print("🧠 [2/4] Synthesizing technical briefing via Groq LPU (Zero-Slop Standard)...")
@@ -324,15 +634,9 @@ def curate_with_groq(hf_papers, github_repos, hn_stories):
         raise ValueError("GROQ_API_KEY environment variable is missing!")
 
     client = Groq(api_key=api_key)
-
-    # Deterministic daily topic rotation based on day of year
     today = datetime.date.today()
-    day_of_year = today.timetuple().tm_yday
-    topic_idx = day_of_year % len(SYSTEM_DESIGN_CURRICULUM)
-    today_topic = SYSTEM_DESIGN_CURRICULUM[topic_idx]
-    print(f"🎯 Assigned Daily System Design Topic [{topic_idx + 1}/{len(SYSTEM_DESIGN_CURRICULUM)}]: {today_topic['topic']}")
 
-    system_prompt = f"""You are a Principal AI & Distributed Systems Architect compiling a high-quality, beginner-friendly 3-page daily briefing for software developers and computer science freshers.
+    system_prompt = f"""You are a Principal Software Architect compiling a high-quality, beginner-friendly 3-page daily briefing for software developers and computer science freshers.
 
 STRICT EDITORIAL RULES:
 1. FORBIDDEN WORDS: revolutionary, game-changer, delve, tapestry, testament, unleash, foster, pivotal, paramount, realm, in today's fast-paced, cutting-edge, elevate, seamlessly.
@@ -340,15 +644,16 @@ STRICT EDITORIAL RULES:
    - You MUST extract the 4 breakthroughs EXCLUSIVELY from the provided 'hugging_face_papers' and 'hacker_news_stories' in the user prompt.
    - For each item, state the real paper/project title, authoring lab/institution or research domain (e.g. Computer Vision Lab, Autonomous Driving AI, Causal Inference Lab, Robotics), explain what was built in plain English, how it works under the hood (without academic jargon), and its concrete software engineering benefit.
    - STRICTLY FORBIDDEN: Do NOT write about old announcements like GPT-4 Turbo, Gemini 1.5 Pro, Claude 3.5 Sonnet, or LLaMA 3. The breakthroughs MUST reflect today's ingested papers!
-3. MANDATORY SYSTEM DESIGN TOPIC FOR TODAY:
+3. MANDATORY SYSTEM DESIGN TOPIC FOR TODAY ({today_topic['category']}):
    - You MUST base today's entire Page 2 masterclass on: '{today_topic["topic"]}'.
    - Core focus: {today_topic["focus"]}.
    - Production case study: {today_topic["case_study"]}.
+   - If this is a Low-Level Design (LLD) topic, discuss class structures, design patterns, thread safety, and data structures. If this is a High-Level Design (HLD) topic, discuss microservices, caching, consensus, and horizontal scaling.
    - Do NOT pick any other topic!
 4. STANDOUT DEVELOPER REPOSITORIES:
    - You MUST pick 5 repositories EXCLUSIVELY from the provided 'github_trending' candidates.
    - Use their exact repository name, stars, language, and URL.
-   - Do NOT hallucinate popular static tools like prisma, next.js, or transformers unless they appear in the provided input data!
+   - Do NOT pick any repository not in the input list!
 5. ZERO TERMINAL COMMANDS: Do NOT include any CLI commands, bash snippets, or code installation blocks.
 6. COMPLETE COVERAGE: Write detailed, engaging paragraphs that provide substantial educational depth and fill the page budget.
 
@@ -363,12 +668,12 @@ Return a valid JSON object matching this exact schema:
   ],
   "system_design": {{
     "topic": "{today_topic['topic']}",
-    "fundamental_problem": "A clear, compelling 3-4 sentence explanation of the real-world dilemma: why normal servers/databases crash under load, detailing the physical bottleneck (disk I/O, network lock contention, split-brain, memory starvation).",
-    "intuitive_mental_model": "A memorable, intuitive real-world analogy (e.g. restaurant waiter with water pitcher, parliamentary quorum voting, library index cards, post office routing) explaining the core concept in simple terms.",
-    "architecture_flow": "A clear step-by-step walkthrough of how data and requests flow through the system.",
-    "engineering_tradeoffs": "A balanced explanation of the tricky challenges and trade-offs (e.g. consistency vs latency, partition tolerance, memory footprint).",
+    "fundamental_problem": "A clear, compelling 3-4 sentence explanation of the real-world dilemma: why this system/component becomes a bottleneck, detailing the physical dilemma (thread race conditions, lock contention, memory leaks, latency spikes, or network partitions).",
+    "intuitive_mental_model": "A memorable, intuitive real-world analogy (e.g. restaurant waiter with water pitcher, parliamentary quorum voting, library index cards, post office routing, traffic toll-booth) explaining the core concept in simple terms.",
+    "architecture_flow": "A clear step-by-step walkthrough of how the system operates and coordinates requests.",
+    "engineering_tradeoffs": "A balanced explanation of the tricky challenges and trade-offs (e.g. memory vs CPU, optimistic vs pessimistic locks, consistency vs availability).",
     "production_case_study": "{today_topic['case_study']} - detailed explanation of how it was implemented at scale with specific engineering metrics.",
-    "interview_takeaway": "An exact, concise script of what a software engineer or fresher should say in a technical interview when asked about this architectural pattern."
+    "interview_takeaway": "An exact, concise script of what a software engineer or fresher should say in a technical interview when asked about this architectural pattern or LLD problem."
   }},
   "developer_repos": [
     {{
@@ -389,7 +694,7 @@ Provide exactly:
 
     user_content = json.dumps({
         "hugging_face_papers": hf_papers[:8],
-        "github_trending": github_repos[:12],
+        "github_trending": github_repos[:15],
         "hacker_news_stories": hn_stories[:8]
     })
 
@@ -404,6 +709,27 @@ Provide exactly:
     )
 
     data = json.loads(response.choices[0].message.content)
+    
+    # Guarantee exactly 5 developer repositories are populated on Page 3
+    curated_repos = data.get("developer_repos", [])
+    if len(curated_repos) < 5 and github_repos:
+        existing_names = set(r.get("name", "").lower() for r in curated_repos)
+        for candidate in github_repos:
+            c_name = candidate.get("name", "")
+            if c_name.lower() not in existing_names:
+                curated_repos.append({
+                    "name": c_name,
+                    "category": "Developer Tooling",
+                    "stars": candidate.get("stars", ""),
+                    "language": candidate.get("language", "General"),
+                    "overview": candidate.get("description") or "Open-source developer utility with active maintenance.",
+                    "url": candidate.get("url", f"https://github.com/{c_name}")
+                })
+                existing_names.add(c_name.lower())
+                if len(curated_repos) >= 5:
+                    break
+    data["developer_repos"] = curated_repos[:5]
+
     print("✅ Technical curation completed.")
     return data
 
@@ -412,7 +738,7 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
     """
     Compile structured briefing into an executive-grade 3-page PDF using ReportLab.
     - Page 1: Daily AI Breakthroughs & Lab Innovations (From live research papers)
-    - Page 2: System Design Masterclass (Daily deterministic rotating topic)
+    - Page 2: System Design Masterclass (Randomly chosen HLD / LLD topic)
     - Page 3: Standout Developer Repositories across Tech Stack (5 fresh repos)
     - Full justified text alignment, professional spacing, zero colored boxes, zero static footers.
     - Exactly 3 Pages total!
@@ -519,7 +845,7 @@ def generate_pdf(digest_data, output_filename="Morning_Tech_Pulse.pdf"):
     # PAGE 2: SYSTEM DESIGN MASTERCLASS (FULL PAGE)
     # ==========================================
     sd = digest_data.get("system_design", {})
-    topic = sd.get("topic", "System Design: Distributed Architecture")
+    topic = sd.get("topic", "System Design: Architecture Masterclass")
     problem = sd.get("fundamental_problem", "")
     analogy = sd.get("intuitive_mental_model", "")
     flow = sd.get("architecture_flow", "")
@@ -654,16 +980,40 @@ def dispatch_via_email(digest_data, pdf_path="Morning_Tech_Pulse.pdf"):
 
 def main():
     print("=" * 60)
-    print("🚀 Running Morning Tech Pulse Pipeline (Dynamic 3-Page Standard)")
+    print("🚀 Running Morning Tech Pulse Pipeline (HLD + LLD Dynamic Standard)")
     print("=" * 60)
 
-    hf_papers, github_repos, hn_stories = fetch_raw_signals()
-    digest_data = curate_with_groq(hf_papers, github_repos, hn_stories)
+    # 1. Load persistent delivery history
+    history = load_history()
+
+    # 2. Randomly select undelivered topic across entire System Design (HLD + LLD)
+    today_topic = select_system_design_topic(history)
+
+    # 3. Ingest fresh live signals with strict anti-repetition filter
+    hf_papers, github_repos, hn_stories = fetch_raw_signals(history)
+
+    # 4. Curate zero-slop briefing via Groq
+    digest_data = curate_with_groq(hf_papers, github_repos, hn_stories, today_topic)
+
+    # 5. Compile verified 3-page PDF
     pdf_path = generate_pdf(digest_data)
+
+    # 6. Dispatch via Gmail SMTP
     dispatch_via_email(digest_data, pdf_path)
 
+    # 7. Record delivered items into history to strictly prevent repeats in future runs
+    history["delivered_topics"].append(today_topic["topic"])
+    for r in digest_data.get("developer_repos", []):
+        if r.get("name"):
+            history["delivered_repos"].append(r["name"])
+    for b in digest_data.get("breakthroughs", []):
+        if b.get("headline"):
+            history["delivered_breakthroughs"].append(b["headline"])
+
+    save_history(history)
+
     print("=" * 60)
-    print("🏁 Pipeline execution finished cleanly.")
+    print("🏁 Pipeline execution finished cleanly with history updated.")
     print("=" * 60)
 
 

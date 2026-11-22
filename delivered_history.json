@@ -1,0 +1,34 @@
+{
+  "delivered_topics": [
+    "System Design: Distributed Rate Limiting & Token Bucket Algorithms",
+    "System Design: Idempotency Keys & Safe API Retries",
+    "HLD: Designing an API Gateway Architecture with Rate Limiting & Auth"
+  ],
+  "delivered_repos": [
+    "prisma/prisma",
+    "terraform-aws-modules/terraform-aws-ecs",
+    "vercel/next.js",
+    "tokio-rs/tokio",
+    "huggingface/transformers",
+    "storytold/craft-anything",
+    "ccch1mneyyy/dsh-go",
+    "deepseek-ai/dsh-superagent-prototype",
+    "heydamir/unslop",
+    "anefzaoui/misterdownloadmanager",
+    "jeecgboot/JeecgBoot",
+    "ifixai-ai/iFixAi",
+    "google/zx",
+    "charmbracelet/bubbletea"
+  ],
+  "delivered_breakthroughs": [
+    "Time Series Structure Learning with Local Causal Parent Discovery",
+    "Teaching Vision-Language-Action Models to Stop Safely",
+    "Lean verification of the Riemann Hypothesis",
+    "Pill to treat pancreatic cancer hailed as 'biggest breakthrough in decades'",
+    "NarrowSpec Enables Faster Speculative Decoding with Mismatched Draft Width",
+    "Policy-Aware Data Valuation Boosts Autonomous Driving Training",
+    "Lang\u2011SVG Turns Text Prompts into Structured Vector Graphics",
+    "Activation Steering Improves Diffusion Transformers via RL Post\u2011Training",
+    "Self\u2011Editing Language Models Can Update Their Own Weights"
+  ]
+}
