@@ -5,7 +5,8 @@
     "HLD: Designing an API Gateway Architecture with Rate Limiting & Auth",
     "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring",
     "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing",
-    "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern"
+    "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern",
+    "HLD: Designing a Video Streaming Platform (YouTube / Netflix)"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -36,7 +37,12 @@
     "pathwaycom/serviette",
     "Textualize/rich",
     "sxyazi/yazi",
-    "microsoft/VibeVoice"
+    "microsoft/VibeVoice",
+    "FiloSottile/mkcert",
+    "go-gitea/gitea",
+    "etcd-io/etcd",
+    "mudler/LocalAI",
+    "ethereum/go-ethereum"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -59,6 +65,10 @@
     "Squoosh Bench: Evaluating UX\u20111 on 318 Historical Website A/B Tests",
     "In Situ Training of Optical Neural Networks by Coding Agents",
     "Online Mistake Detection in Instruction\u2011Conditioned Procedural Video",
-    "AURA: Audio\u2011driven Streaming Avatar"
+    "AURA: Audio\u2011driven Streaming Avatar",
+    "Exploited Before It Was Fixed? Vulnerability Timelines from Open, Machine-Readable Evidence",
+    "Moving Generality from Model to Modeler: LLM Agents for PHM on a Deployment\u2011Style Benchmark",
+    "StereoVLM: Binocular Vision\u2011Language Models for Metric 3D Spatial Reasoning",
+    "Free alternative TV network built from the Internet Archive's forgotten videos"
   ]
 }
