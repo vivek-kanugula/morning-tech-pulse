@@ -4,7 +4,8 @@
     "System Design: Idempotency Keys & Safe API Retries",
     "HLD: Designing an API Gateway Architecture with Rate Limiting & Auth",
     "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring",
-    "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing"
+    "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing",
+    "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -30,7 +31,12 @@
     "typst/typst",
     "aaif-goose/goose",
     "FuelLabs/fuel-core",
-    "astral-sh/ruff"
+    "astral-sh/ruff",
+    "ultralytics/yolov5",
+    "pathwaycom/serviette",
+    "Textualize/rich",
+    "sxyazi/yazi",
+    "microsoft/VibeVoice"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -49,6 +55,10 @@
     "RL Post-Training in Diffusion Transformers Is Activation Steering",
     "Language Models Can Rewrite Their Own Weights",
     "AURA: Audio\u2011Driven Streaming Avatar",
-    "Inkling\u20112\u2011Mini in 5.4\u202fGB Memory"
+    "Inkling\u20112\u2011Mini in 5.4\u202fGB Memory",
+    "Squoosh Bench: Evaluating UX\u20111 on 318 Historical Website A/B Tests",
+    "In Situ Training of Optical Neural Networks by Coding Agents",
+    "Online Mistake Detection in Instruction\u2011Conditioned Procedural Video",
+    "AURA: Audio\u2011driven Streaming Avatar"
   ]
 }
