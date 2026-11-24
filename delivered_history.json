@@ -6,7 +6,8 @@
     "HLD: Designing a Full-Text Search Engine with Inverted Index & BM25 Scoring",
     "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing",
     "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern",
-    "HLD: Designing a Video Streaming Platform (YouTube / Netflix)"
+    "HLD: Designing a Video Streaming Platform (YouTube / Netflix)",
+    "LLD: Flight Reservation System with Temporary Seat Hold Expiration"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -42,7 +43,12 @@
     "go-gitea/gitea",
     "etcd-io/etcd",
     "mudler/LocalAI",
-    "ethereum/go-ethereum"
+    "ethereum/go-ethereum",
+    "ChromeDevTools/chrome-devtools-mcp",
+    "pmndrs/zustand",
+    "appwrite/appwrite",
+    "FlowiseAI/Flowise",
+    "sharkdp/fd"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -69,6 +75,10 @@
     "Exploited Before It Was Fixed? Vulnerability Timelines from Open, Machine-Readable Evidence",
     "Moving Generality from Model to Modeler: LLM Agents for PHM on a Deployment\u2011Style Benchmark",
     "StereoVLM: Binocular Vision\u2011Language Models for Metric 3D Spatial Reasoning",
-    "Free alternative TV network built from the Internet Archive's forgotten videos"
+    "Free alternative TV network built from the Internet Archive's forgotten videos",
+    "Vision\u2011Language Models Can Predict Invisible Radio Fields from Street\u2011Level Images",
+    "From Points to Trajectories: New Multimodal Alignment for Physical Event Understanding",
+    "Feedback\u2011Free Self\u2011Evolution Enables Agents to Rewrite Their Own Skills",
+    "Stalwart Offers a Drop\u2011In Replacement for Microsoft Exchange"
   ]
 }
