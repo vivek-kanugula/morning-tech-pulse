@@ -7,7 +7,8 @@
     "LLD: Parking Lot System with Multi-Tier Vehicle Allocation & Dynamic Pricing",
     "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern",
     "HLD: Designing a Video Streaming Platform (YouTube / Netflix)",
-    "LLD: Flight Reservation System with Temporary Seat Hold Expiration"
+    "LLD: Flight Reservation System with Temporary Seat Hold Expiration",
+    "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -48,7 +49,12 @@
     "pmndrs/zustand",
     "appwrite/appwrite",
     "FlowiseAI/Flowise",
-    "sharkdp/fd"
+    "sharkdp/fd",
+    "dbeaver/dbeaver",
+    "ClickHouse/ClickHouse",
+    "prisma/orm",
+    "duckdb/duckdb",
+    "The-Vibe-Company/quivr"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -79,6 +85,10 @@
     "Vision\u2011Language Models Can Predict Invisible Radio Fields from Street\u2011Level Images",
     "From Points to Trajectories: New Multimodal Alignment for Physical Event Understanding",
     "Feedback\u2011Free Self\u2011Evolution Enables Agents to Rewrite Their Own Skills",
-    "Stalwart Offers a Drop\u2011In Replacement for Microsoft Exchange"
+    "Stalwart Offers a Drop\u2011In Replacement for Microsoft Exchange",
+    "ToolSmith: Automatic Tool-Generation Framework for Multimodal Search Agents",
+    "DexDuet: Learning Contact-Preserving Bimanual Dexterity from Human Demonstrations",
+    "Let the Fixer Decide: Training a Code Localizer from the Fixer's Likelihood",
+    "Ladybird Browser Reaches Alpha Release"
   ]
 }
