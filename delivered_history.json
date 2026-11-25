@@ -8,7 +8,8 @@
     "LLD: Connection Pool Manager with Semaphore & Object Pool Pattern",
     "HLD: Designing a Video Streaming Platform (YouTube / Netflix)",
     "LLD: Flight Reservation System with Temporary Seat Hold Expiration",
-    "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale"
+    "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale",
+    "LLD: Chess Game Engine with Move Validation & Board State Tracking"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -54,7 +55,12 @@
     "ClickHouse/ClickHouse",
     "prisma/orm",
     "duckdb/duckdb",
-    "The-Vibe-Company/quivr"
+    "The-Vibe-Company/quivr",
+    "lencx/ChatGPT",
+    "bevyengine/bevy",
+    "helix-editor/helix",
+    "juspay/hyperswitch",
+    "storytold/photocraft"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -89,6 +95,10 @@
     "ToolSmith: Automatic Tool-Generation Framework for Multimodal Search Agents",
     "DexDuet: Learning Contact-Preserving Bimanual Dexterity from Human Demonstrations",
     "Let the Fixer Decide: Training a Code Localizer from the Fixer's Likelihood",
-    "Ladybird Browser Reaches Alpha Release"
+    "Ladybird Browser Reaches Alpha Release",
+    "LUCID: Statistically Grounded Self-Correction for LLM Reasoning Evaluation",
+    "PixelOne: From Options to Pixels in a Single Forward for GUI Grounding",
+    "Matrix Multiplication is O(n^2.25) [pdf]",
+    "PenGPT: A Generative Transformer for Handwriting and Sketches"
   ]
 }
