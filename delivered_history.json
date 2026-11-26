@@ -11,7 +11,8 @@
     "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale",
     "LLD: Chess Game Engine with Move Validation & Board State Tracking",
     "HLD: Designing Log-Structured Merge (LSM) Trees & Write-Ahead Logs",
-    "LLD: In-Memory Task Scheduler & Thread Pool Engine"
+    "LLD: In-Memory Task Scheduler & Thread Pool Engine",
+    "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -72,7 +73,12 @@
     "pingcap/tidb",
     "directus/directus",
     "LeCoupa/awesome-cheatsheets",
-    "drawdb-io/drawdb"
+    "drawdb-io/drawdb",
+    "agalwood/Motrix",
+    "remix-run/react-router",
+    "cli/cli",
+    "codewhale-hq/Codewhale",
+    "chubin/cheat.sh"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -119,6 +125,10 @@
     "Model Carving: Training Transformers That Optimize Their Own Topology",
     "Steerable by Design: Conditional Pretraining for Robust Control of Language Models",
     "Fractal Neural Synthesis: Constant-Storage Procedural Weight Derivation via Complex Quadratic Boundary Dynamics",
-    "1Password Security Incident"
+    "1Password Security Incident",
+    "Evaluation-Free Recursive Self-Improvement for Coding Agents",
+    "Letting Models Manage Their Own Context: Where We Stand",
+    "Moat: Your OpenRouter Replacement",
+    "Minipg: PostgreSQL as a Single Executable"
   ]
 }
