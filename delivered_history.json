@@ -10,7 +10,8 @@
     "LLD: Flight Reservation System with Temporary Seat Hold Expiration",
     "HLD: Designing a Ride-Hailing Service (Uber / Lyft) at Global Scale",
     "LLD: Chess Game Engine with Move Validation & Board State Tracking",
-    "HLD: Designing Log-Structured Merge (LSM) Trees & Write-Ahead Logs"
+    "HLD: Designing Log-Structured Merge (LSM) Trees & Write-Ahead Logs",
+    "LLD: In-Memory Task Scheduler & Thread Pool Engine"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -66,7 +67,12 @@
     "janhq/jan",
     "spf13/cobra",
     "vuejs/core",
-    "TryGhost/Ghost"
+    "TryGhost/Ghost",
+    "metabase/metabase",
+    "pingcap/tidb",
+    "directus/directus",
+    "LeCoupa/awesome-cheatsheets",
+    "drawdb-io/drawdb"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -109,6 +115,10 @@
     "ICLWorld: Benchmarking In-Context Learning of Agents from Digital to Physical Worlds",
     "FATCAT: Fault Injection Attacks Targeting Chip-level Alignment",
     "RECAP: Training Long-horizon LLM Agents with Context Compaction",
-    "Matrix Multiplication is \u0398(n^2.25) \u2013 New Theoretical Bound"
+    "Matrix Multiplication is \u0398(n^2.25) \u2013 New Theoretical Bound",
+    "Model Carving: Training Transformers That Optimize Their Own Topology",
+    "Steerable by Design: Conditional Pretraining for Robust Control of Language Models",
+    "Fractal Neural Synthesis: Constant-Storage Procedural Weight Derivation via Complex Quadratic Boundary Dynamics",
+    "1Password Security Incident"
   ]
 }
