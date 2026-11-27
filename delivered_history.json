@@ -12,7 +12,8 @@
     "LLD: Chess Game Engine with Move Validation & Board State Tracking",
     "HLD: Designing Log-Structured Merge (LSM) Trees & Write-Ahead Logs",
     "LLD: In-Memory Task Scheduler & Thread Pool Engine",
-    "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices"
+    "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices",
+    "LLD: Order Management & Fulfillment Pipeline with State Pattern"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -78,7 +79,12 @@
     "remix-run/react-router",
     "cli/cli",
     "codewhale-hq/Codewhale",
-    "chubin/cheat.sh"
+    "chubin/cheat.sh",
+    "GitHubDaily/GitHubDaily",
+    "files-community/Files",
+    "agno-agi/agno",
+    "appsmithorg/appsmith",
+    "meta-llama/llama"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -129,6 +135,10 @@
     "Evaluation-Free Recursive Self-Improvement for Coding Agents",
     "Letting Models Manage Their Own Context: Where We Stand",
     "Moat: Your OpenRouter Replacement",
-    "Minipg: PostgreSQL as a Single Executable"
+    "Minipg: PostgreSQL as a Single Executable",
+    "DetourBench introduces trajectory\u2011level scoring for interactive agents",
+    "Audit framework for LLM pipelines monitoring illicit crypto transactions",
+    "CARE\u20113D teaches agents to gather visual evidence in 3D environments",
+    "AI made self\u2011hosting fun again"
   ]
 }
