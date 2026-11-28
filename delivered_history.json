@@ -15,7 +15,8 @@
     "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices",
     "LLD: Order Management & Fulfillment Pipeline with State Pattern",
     "HLD: Designing a Distributed Search Autocomplete / Typeahead Engine",
-    "HLD: Designing a Collaborative Real-Time Document Editor (Google Docs / Figma)"
+    "HLD: Designing a Collaborative Real-Time Document Editor (Google Docs / Figma)",
+    "LLD: Live Cricket Scoreboard Provider with Observer Pattern (Cricbuzz)"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -96,7 +97,12 @@
     "multica-ai/multica",
     "alibaba/open-code-review",
     "wagoodman/dive",
-    "laurent22/joplin"
+    "laurent22/joplin",
+    "tashfeenahmed/freellmapi",
+    "lyswhut/lx-music-desktop",
+    "CherryHQ/cherry-studio",
+    "FoundationAgents/OpenManus",
+    "hesreallyhim/awesome-claude-code"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -159,6 +165,10 @@
     "LayoutRecall: Preserving Appearance in Multi\u2011Round 3D Layout\u2011Controlled Image Editing",
     "Damped Atomic Wave Integration Neurons (DAWIN): A Universal Primitive for Continuous\u2011Time Spatiotemporal Learning",
     "Google's DeepCrossAttention achieves comparable model quality up to 3\u00d7 faster",
-    "Credit card skimming scripts using WebRTC found on popular shopping sites"
+    "Credit card skimming scripts using WebRTC found on popular shopping sites",
+    "LayoutRecall: Preserving Appearance in Multi-Round 3D Layout-Controlled Image Editing",
+    "Damped Atomic Wave Integration Neurons (DAWIN): A Universal Primitive for Continuous-Time Spatiotemporal Learning",
+    "BiSAT: Bidirectionally Aligned Semantic\u2011Acoustic Tokenization for Speech Language Models",
+    "Google's DeepCrossAttention achieves comparable model quality up to 3x faster"
   ]
 }
