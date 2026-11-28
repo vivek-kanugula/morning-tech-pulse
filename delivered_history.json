@@ -14,7 +14,8 @@
     "LLD: In-Memory Task Scheduler & Thread Pool Engine",
     "HLD: Designing Two-Phase Commit (2PC) vs The Saga Pattern for Microservices",
     "LLD: Order Management & Fulfillment Pipeline with State Pattern",
-    "HLD: Designing a Distributed Search Autocomplete / Typeahead Engine"
+    "HLD: Designing a Distributed Search Autocomplete / Typeahead Engine",
+    "HLD: Designing a Collaborative Real-Time Document Editor (Google Docs / Figma)"
   ],
   "delivered_repos": [
     "prisma/prisma",
@@ -90,7 +91,12 @@
     "CorentinTh/it-tools",
     "soxoj/maigret",
     "ajeetdsouza/zoxide",
-    "Gathin23/cleanyourtv"
+    "Gathin23/cleanyourtv",
+    "router-for-me/CLIProxyAPI",
+    "multica-ai/multica",
+    "alibaba/open-code-review",
+    "wagoodman/dive",
+    "laurent22/joplin"
   ],
   "delivered_breakthroughs": [
     "Time Series Structure Learning with Local Causal Parent Discovery",
@@ -149,6 +155,10 @@
     "InitFree-SfM: Initialization\u2011Free Bundle Adjustment meets Learned Structure\u2011from\u2011Motion",
     "So Many Ways to Multiply 3\u00d73 Matrices: A Large Dataset of Rank\u201123 Schemes",
     "Guarding with Judgment: Learning to Intervene for Multimodal Safety",
-    "When an AI Agent Makes a Mistake in a Database, What Decides the Damage?"
+    "When an AI Agent Makes a Mistake in a Database, What Decides the Damage?",
+    "LayoutRecall: Preserving Appearance in Multi\u2011Round 3D Layout\u2011Controlled Image Editing",
+    "Damped Atomic Wave Integration Neurons (DAWIN): A Universal Primitive for Continuous\u2011Time Spatiotemporal Learning",
+    "Google's DeepCrossAttention achieves comparable model quality up to 3\u00d7 faster",
+    "Credit card skimming scripts using WebRTC found on popular shopping sites"
   ]
 }
